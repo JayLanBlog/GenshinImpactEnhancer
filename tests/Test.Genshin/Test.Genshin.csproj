@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
     <IsPackable>false</IsPackable>
@@ -24,6 +25,7 @@
     <ProjectReference Include="..\..\src\Infrastructure\Stella.Utils\Stella.Utils.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure\Stella.DeviceIdentifier\Stella.DeviceIdentifier.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure\Stella.StartupBeacon\Stella.StartupBeacon.csproj" />
+    <ProjectReference Include="..\..\src\Core\Stella.Core\Stella.Core.csproj" />
   </ItemGroup>
 
 </Project>
