@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Infrastructure\Stella.Utils\Stella.Utils.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure\Stella.DeviceIdentifier\Stella.DeviceIdentifier.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\Stella.StartupBeacon\Stella.StartupBeacon.csproj" />
   </ItemGroup>
 
 </Project>
