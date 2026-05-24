@@ -20,4 +20,8 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Infrastructure\Stella.Utils\Stella.Utils.csproj" />
+  </ItemGroup>
+
 </Project>
