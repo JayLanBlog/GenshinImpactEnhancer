@@ -89,6 +89,9 @@
                     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
                         <TextBlock Text="注入 DLL: " Foreground="#888" VerticalAlignment="Center" FontSize="11"/>
                         <TextBlock x:Name="TxtDllStatus" Text="待检测" Foreground="#ffd93d" VerticalAlignment="Center" FontSize="11"/>
+                        <TextBlock Text=" | " Foreground="#444" VerticalAlignment="Center" FontSize="11"/>
+                        <TextBlock Text="PEB隐藏: " Foreground="#888" VerticalAlignment="Center" FontSize="11"/>
+                        <TextBlock x:Name="TxtPebStatus" Text="—" Foreground="#ffd93d" VerticalAlignment="Center" FontSize="11"/>
                     </StackPanel>
                 </Grid>
             </Border>

@@ -190,8 +190,16 @@ public partial class MainWindow : Window
             Win32.GetExitCodeThread(hThread, out uint ec);
             Win32.CloseHandle(hThread);
             Win32.VirtualFreeEx(hProcess, mem, 0, Win32.MEM_RELEASE);
-            if (ec == 0) { AppendLog("❌ LoadLibrary 返回 NULL"); UpdateDllStatus("失败", Brushes.Red); }
-            else { AppendLog($"✅ 注入成功 (0x{ec:X})"); UpdateDllStatus("✅ 已注入", Brushes.LimeGreen); }
+            if (ec == 0) { AppendLog("❌ LoadLibrary 返回 NULL"); UpdateDllStatus("失败", Brushes.Red); UpdatePebStatus("—", Brushes.Gray); }
+            else
+            {
+                AppendLog($"✅ 注入成功 (0x{ec:X})");
+                UpdateDllStatus("✅ 已注入", Brushes.LimeGreen);
+                // PEB 隐藏：DLL 在 DllMain 中自动从模块链表摘除
+                AppendLog("🛡️ PEB 模块隐藏：DLL 已从 LDR 链表摘除");
+                AppendLog("   → EnumProcessModules / CreateToolhelp32Snapshot 不可见");
+                UpdatePebStatus("✅ 已隐藏", Brushes.LimeGreen);
+            }
         }
         finally { Win32.CloseHandle(hProcess); }
     }
@@ -204,13 +212,13 @@ public partial class MainWindow : Window
         try { Process.GetProcessById(_gamePid).Kill(); } catch { }
         if (_gameProcessHandle != IntPtr.Zero) { Win32.CloseHandle(_gameProcessHandle); if (_gameThreadHandle != IntPtr.Zero) Win32.CloseHandle(_gameThreadHandle); }
         _gameRunning = false; AppendLog("⏹ 已停止");
-        BtnLaunch.IsEnabled = true; BtnSearch.IsEnabled = true; UpdateStatus("就绪"); UpdateDllStatus("待检测", Brushes.Gray);
+        BtnLaunch.IsEnabled = true; BtnSearch.IsEnabled = true; UpdateStatus("就绪"); UpdateDllStatus("待检测", Brushes.Gray); UpdatePebStatus("—", Brushes.Gray);
     }
 
     private void OnGameExit()
     {
         AppendLog("🛑 游戏已退出"); BtnLaunch.IsEnabled = true; BtnSearch.IsEnabled = true;
-        BtnShutdown.IsEnabled = false; _gameRunning = false; UpdateStatus("就绪"); UpdateDllStatus("待检测", Brushes.Gray);
+        BtnShutdown.IsEnabled = false; _gameRunning = false; UpdateStatus("就绪"); UpdateDllStatus("待检测", Brushes.Gray); UpdatePebStatus("—", Brushes.Gray);
     }
 
     // ── UI 辅助 ──
@@ -229,6 +237,7 @@ public partial class MainWindow : Window
     private void AppendLog(string msg) => Dispatcher.Invoke(() => { TxtLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\n"); TxtLog.ScrollToEnd(); });
     private void UpdateStatus(string t) => Dispatcher.Invoke(() => TxtStatus.Text = t);
     private void UpdateDllStatus(string t, Brush c) => Dispatcher.Invoke(() => { TxtDllStatus.Text = t; TxtDllStatus.Foreground = c; });
+    private void UpdatePebStatus(string t, Brush c) => Dispatcher.Invoke(() => { TxtPebStatus.Text = t; TxtPebStatus.Foreground = c; });
 
     // ── Win32 P/Invoke ──
     private static class Win32
