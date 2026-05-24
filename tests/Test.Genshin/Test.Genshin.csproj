@@ -30,6 +30,7 @@
     <ProjectReference Include="..\..\src\Core\Stella.Core.FpsUnlock\Stella.Core.FpsUnlock.csproj" />
     <ProjectReference Include="..\..\src\Core\Stella.Core.Migoto\Stella.Core.Migoto.csproj" />
     <ProjectReference Include="..\..\src\Application\Stella.Services\Stella.Services.csproj" />
+    <ProjectReference Include="..\..\src\Application\Stella.Update\Stella.Update.csproj" />
   </ItemGroup>
 
 </Project>
