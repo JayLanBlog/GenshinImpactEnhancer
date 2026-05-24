@@ -1,12 +1,84 @@
-﻿<Window x:Class="Stella.Launcher.MainWindow"
+<Window x:Class="Stella.Launcher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Stella.Launcher"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Genshin Stella Mod" Height="650" Width="900"
+        Background="#1a1a2e" WindowStartupLocation="CenterScreen">
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
+        <!-- 标题 -->
+        <TextBlock Grid.Row="0" Text="🎮 Genshin Stella Mod" 
+                   FontSize="28" FontWeight="Bold" Foreground="#e94560"
+                   HorizontalAlignment="Center" Margin="0,0,0,15"/>
+
+        <!-- 硬件信息 -->
+        <Border Grid.Row="1" Background="#16213e" CornerRadius="10" Padding="15" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="🖥️ 硬件信息" FontSize="16" FontWeight="Bold" Foreground="#e94560" Margin="0,0,0,8"/>
+                <TextBlock x:Name="TxtHardware" Foreground="#ccc" FontSize="13" 
+                           Text="正在采集硬件信息..." FontFamily="Consolas"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 主内容 -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.2*"/>
+                <ColumnDefinition Width="0.8*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 左侧 AI 推荐 -->
+            <Border Background="#16213e" CornerRadius="10" Padding="15" Margin="0,0,5,0">
+                <StackPanel>
+                    <TextBlock Text="🤖 AI 推荐" FontSize="16" FontWeight="Bold" Foreground="#e94560" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="TxtRecommendation" Text="分析中..." Foreground="#ccc" FontSize="13"
+                               FontFamily="Consolas" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 右侧 引擎状态 -->
+            <Border Background="#16213e" CornerRadius="10" Padding="15" Margin="5,0,0,0">
+                <StackPanel>
+                    <TextBlock Text="⚙️ 引擎状态" FontSize="16" FontWeight="Bold" Foreground="#e94560" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="TxtEngines" Text="未启动" Foreground="#ccc" FontSize="13"
+                               FontFamily="Consolas" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- 底部按钮 -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
+            <Button x:Name="BtnLaunch" Content="▶ 一键启动增强模式" 
+                    Width="220" Height="45" FontSize="15" FontWeight="Bold"
+                    Background="#e94560" Foreground="White" BorderThickness="0"
+                    Cursor="Hand" Click="BtnLaunch_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+            <Button x:Name="BtnShutdown" Content="⏹ 停止" 
+                    Width="100" Height="45" FontSize="14"
+                    Background="#533483" Foreground="White" BorderThickness="0"
+                    Cursor="Hand" Click="BtnShutdown_Click" IsEnabled="False" Margin="10,0,0,0">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </StackPanel>
+
+        <!-- 状态栏 -->
+        <TextBlock x:Name="TxtStatus" Grid.Row="3" Text="就绪" 
+                   Foreground="#888" FontSize="12" HorizontalAlignment="Left"
+                   VerticalAlignment="Bottom" Margin="0,0,0,-5"/>
     </Grid>
 </Window>

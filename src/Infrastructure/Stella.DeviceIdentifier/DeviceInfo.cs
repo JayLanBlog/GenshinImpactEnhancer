@@ -17,6 +17,7 @@ public class DeviceInfo
             .Replace("nvidia ", "").Replace("geforce ", "").Replace("amd ", "")
             .Replace("radeon ", "").Replace("rx ", "rx").Replace("intel ", "")
             .Replace("arc ", "arc").Replace("(r)", "").Replace(" graphics", "")
+            .Replace("laptop gpu", "").Replace("mobile", "")
             .Replace(" ", "").Replace("-", "").Replace("_", "");
         return lower;
     }
