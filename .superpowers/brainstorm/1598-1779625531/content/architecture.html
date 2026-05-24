@@ -1,0 +1,79 @@
+<h2>🏛️ 三种架构方案对比</h2>
+<p class="subtitle">已确定：C# .NET + WPF · 全功能复刻 · AI调参 · 极致UI · 性能仪表盘</p>
+
+<div class="options">
+  <div class="option" data-choice="monorepo" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>📦 分层单体仓库（Layered Monorepo）<span style="font-size:0.7em;color:#e94560"> ★ 推荐</span></h3>
+      <p>单个 .sln 解决方案，按职责分层拆分为多个 Project。从下到上：<br>
+      <b>Native Layer</b>（C++ DLL注入）→ <b>Core Engine</b>（C# P/Invoke 封装）→ <b>Business Logic</b>（配置/预设/更新）→ <b>UI Layer</b>（WPF 界面）<br>
+      原项目用的就是这个模式，结构清晰，构建简单。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="plugin" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>🧩 插件化架构（Plugin-Based）</h3>
+      <p>核心启动器极简，ReShade / FPS Unlock / 3DMigoto 各自编译为独立 .dll，运行时动态加载。<br>
+      通过 <b>IPlugin 接口</b> 统一管理生命周期。优势是引擎热插拔，但插件契约维护成本高。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="process" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>🔀 多进程架构（Multi-Process）</h3>
+      <p>每个引擎作为独立进程运行，通过 <b>Named Pipe / Shared Memory</b> 与启动器通信。<br>
+      进程隔离好，挂了一个不影响其他。但注入场景下不适合——DLL 必须和目标进程同空间。</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px">核心权衡</h3>
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">A. 分层单体 — 为什么最合适？</div>
+    <div class="mockup-body" style="font-size:0.8em">
+      <pre style="line-height:1.8;background:#0f0f23;padding:10px;border-radius:6px">
+┌──────────────────────────────────┐
+│  🖥️  Stella.Launcher (WPF UI)    │  ← 极致UI + 仪表盘 + AI面板
+├──────────────────────────────────┤
+│  🧠  Stella.Services             │  ← 业务逻辑：预设推荐 / 场景识别
+├──────────────────────────────────┤
+│  ⚙️  Stella.Core                 │  ← C# 封装 P/Invoke → C++ DLL
+│  ├── ReshadeEngine               │
+│  ├── FpsUnlockEngine             │
+│  └── MigotoEngine                │
+├──────────────────────────────────┤
+│  🧬  Native (C++ DLL)            │  ← DX Hook / 内存修改 / 注入
+└──────────────────────────────────┘
+      </pre>
+      <ul style="margin:8px 0 0 14px;color:#ccc">
+        <li>所有 DLL 注入在同一个进程态，<b>架构最自然</b></li>
+        <li>WPF UI 直接持有引擎引用 → <b>仪表盘数据零延迟</b></li>
+        <li>单次编译 + 单包发布，<b>用户下载即用</b></li>
+      </ul>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">B vs C — 为什么不太适合</div>
+    <div class="mockup-body" style="font-size:0.8em">
+      <p style="color:#e94560"><b>插件化的问题：</b></p>
+      <ul style="color:#ccc">
+        <li>DLL注入引擎是<b>强耦合的</b>——都要 Hook DX Pipeline，强行拆分反而增加复杂度</li>
+        <li>你不需要"热插拔"——玩家要么全开要么全关</li>
+        <li>插件版本兼容矩阵是维护噩梦</li>
+      </ul>
+      <p style="color:#e94560;margin-top:12px"><b>多进程的问题：</b></p>
+      <ul style="color:#ccc">
+        <li>DLL 必须注入到<b>游戏进程空间</b>，分离进程毫无意义</li>
+        <li>IPC 延迟会让仪表盘数据落后 50-100ms</li>
+        <li>额外 ~200MB 内存开销</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px;padding:12px;background:#16213e;border-radius:8px;font-size:0.85em;text-align:center">
+  <b style="color:#e94560">💡 结论：</b> 分层单体是最佳选择。DLL 注入天然要求与目标进程同空间，强行拆分只会增加复杂度。原项目选这个不是偶然。
+</div>

@@ -1,0 +1,138 @@
+<h2>📋 设计确认 · 第3节：WPF UI 架构 & 三大界面</h2>
+<p class="subtitle">极致 UI/UX + 性能仪表盘 + AI 面板，三合一启动器</p>
+
+<div class="mockup">
+  <div class="mockup-header">🖥️ Stella.Launcher 界面架构</div>
+  <div class="mockup-body">
+
+<div style="display:flex;gap:16px;margin-bottom:16px">
+  
+<div style="flex:1;background:#1a1a2e;border-radius:10px;overflow:hidden;border:1px solid #333">
+  <div class="mock-nav" style="margin:0;border-radius:0">Tab1: 🎮 一键启动</div>
+  <div style="padding:12px;font-size:0.78em">
+    <div class="mock-content" style="height:80px;margin-bottom:8px">
+      游戏横幅 / Logo<br>
+      [▶  一键启动增强模式]
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="mock-button" style="font-size:0.7em">🎨 预设: 电影级</button>
+      <button class="mock-button" style="font-size:0.7em">🚀 FPS: 144Hz</button>
+      <button class="mock-button" style="font-size:0.7em">🧩 Mod: 3个</button>
+    </div>
+    <div style="font-size:0.7em;color:#888;margin-top:8px">
+      💡 AI推荐: 检测到 RTX 4060，推荐「电影级」预设
+    </div>
+  </div>
+</div>
+
+<div style="flex:1;background:#1a1a2e;border-radius:10px;overflow:hidden;border:1px solid #333">
+  <div class="mock-nav" style="margin:0;border-radius:0">Tab2: ⚙️ 着色器预设</div>
+  <div style="padding:12px;font-size:0.78em">
+    <div style="display:flex;gap:6px">
+      <div class="mock-sidebar" style="font-size:0.7em;margin:0;width:120px">
+        📂 电影级<br>
+        📂 明亮<br>
+        📂 写实<br>
+        📂 动漫风<br>
+        <span style="color:#e94560">📂 我的预设</span>
+      </div>
+      <div class="mock-content" style="font-size:0.7em;height:105px;margin:0">
+        <b>🎨 电影级</b><br>
+        ✅ HDR · ✅ 景深 · ✅ 光晕<br>
+        ✅ 锐化 · ❌ 色差<br><br>
+        性能开销: ████░░ 68%<br>
+        [套用] [编辑] [分享]
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div style="display:flex;gap:16px">
+
+<div style="flex:1;background:#1a1a2e;border-radius:10px;overflow:hidden;border:1px solid #333">
+  <div class="mock-nav" style="margin:0;border-radius:0">Tab3: 📊 性能仪表盘</div>
+  <div style="padding:12px;font-size:0.78em">
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <div style="background:#0f0f23;padding:8px;border-radius:6px;text-align:center;flex:1">
+        <div style="font-size:1.4em;color:#00ff88;font-weight:bold">142</div>
+        <div style="color:#888;font-size:0.7em">FPS</div>
+      </div>
+      <div style="background:#0f0f23;padding:8px;border-radius:6px;text-align:center;flex:1">
+        <div style="font-size:1.4em;color:#ff6b6b;font-weight:bold">68°</div>
+        <div style="color:#888;font-size:0.7em">GPU</div>
+      </div>
+      <div style="background:#0f0f23;padding:8px;border-radius:6px;text-align:center;flex:1">
+        <div style="font-size:1.4em;color:#ffd93d;font-weight:bold">58°</div>
+        <div style="color:#888;font-size:0.7em">CPU</div>
+      </div>
+      <div style="background:#0f0f23;padding:8px;border-radius:6px;text-align:center;flex:1">
+        <div style="font-size:1.4em;color:#6bcbff;font-weight:bold">3.2G</div>
+        <div style="color:#888;font-size:0.7em">VRAM</div>
+      </div>
+    </div>
+    <div class="placeholder" style="height:50px;font-size:0.7em">
+      📈 FPS 曲线图 (LiveCharts2 / OxyPlot)
+    </div>
+    <div style="font-size:0.7em;color:#888;margin-top:4px">
+      着色器开销: HDR 12% · 景深 25% · 锐化 5%
+    </div>
+  </div>
+</div>
+
+<div style="flex:1;background:#1a1a2e;border-radius:10px;overflow:hidden;border:1px solid #333">
+  <div class="mock-nav" style="margin:0;border-radius:0">Tab4: 🤖 AI 推荐</div>
+  <div style="padding:12px;font-size:0.78em">
+    <div style="font-size:0.75em;color:#ccc;line-height:1.6">
+      <b>基于你的硬件推荐：</b><br>
+      GPU: RTX 4060 · CPU: i5-13400 · RAM: 16GB<br><br>
+      <span style="color:#00ff88">★ 推荐预设：电影级</span><br>
+      预计 FPS: 120-144 (2K)<br>
+      总开销: ~68% GPU<br><br>
+      <span style="color:#ffd93d">⚡ 备选：明亮</span><br>
+      预计 FPS: 160+ (2K)<br>
+      总开销: ~40% GPU<br><br>
+      <span style="color:#888">🧠 社区数据：87%同配置玩家选择电影级</span>
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </div>
+</div>
+
+<h3 style="margin-top:20px">技术选型</h3>
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">UI 技术栈</div>
+    <div class="mockup-body" style="font-size:0.78em">
+      <ul style="color:#ccc;line-height:1.8">
+        <li><b>框架：</b>WPF + .NET 10</li>
+        <li><b>风格：</b>Fluent Design · Acrylic · Mica</li>
+        <li><b>控件：</b>MaterialDesignInXAML + HandyControl</li>
+        <li><b>图表：</b>LiveCharts2（性能好、API 简洁）</li>
+        <li><b>MVVM：</b>CommunityToolkit.Mvvm</li>
+        <li><b>导航：</b>TabControl + 自定义过渡动画</li>
+      </ul>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">游戏内 Overlay</div>
+    <div class="mockup-body" style="font-size:0.78em">
+      <ul style="color:#ccc;line-height:1.8">
+        <li><b>实现：</b>C++ Direct2D 渲染</li>
+        <li><b>位置：</b>屏幕左上角 · 半透明 · 可拖拽</li>
+        <li><b>内容：</b>FPS · GPU温度 · 预设名 · 热键提示</li>
+        <li><b>触发：</b>Ctrl+Shift+O 显隐</li>
+        <li><b>通信：</b>Shared Memory → WPF 进程</li>
+        <li><b>性能：</b>< 1ms 额外开销（仅文字渲染）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px;padding:12px;background:#16213e;border-radius:8px;font-size:0.85em;text-align:center">
+  这节<span style="color:#e94560;font-weight:bold">UI 架构 + 四大页面设计 + 技术栈</span>看起来合理吗？
+</div>

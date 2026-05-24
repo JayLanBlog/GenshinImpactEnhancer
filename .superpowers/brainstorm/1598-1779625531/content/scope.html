@@ -1,0 +1,95 @@
+<h2>🎯 功能范围决策</h2>
+<p class="subtitle">技术栈确定为 C# .NET 后，下一步：你要做多少？</p>
+
+<div class="section">
+  <h3>原项目功能全景</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">📊 三大核心引擎 + 外围支撑</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      
+      <div style="flex:1;min-width:200px;border:2px solid #e94560;border-radius:12px;padding:16px;background:#1a1a2e">
+        <div style="font-size:1.5em;text-align:center;margin-bottom:8px">🎨</div>
+        <div style="font-weight:bold;color:#e94560;text-align:center;margin-bottom:10px">ReShade 着色器</div>
+        <div style="font-size:0.8em;color:#ccc;line-height:1.6">
+          注入 .dll → Hook DX11/DX12 → 加载 HLSL 着色器预设<br>
+          <span style="color:#888">难度: ⭐⭐⭐⭐</span>
+        </div>
+      </div>
+
+      <div style="flex:1;min-width:200px;border:2px solid #533483;border-radius:12px;padding:16px;background:#1a1a2e">
+        <div style="font-size:1.5em;text-align:center;margin-bottom:8px">🚀</div>
+        <div style="font-weight:bold;color:#533483;text-align:center;margin-bottom:10px">FPS 解锁</div>
+        <div style="font-size:0.8em;color:#ccc;line-height:1.6">
+          内存偏移定位 → 修改帧率上限值 → 绕过 V-Sync 限制<br>
+          <span style="color:#888">难度: ⭐⭐⭐</span>
+        </div>
+      </div>
+
+      <div style="flex:1;min-width:200px;border:2px solid #f0a500;border-radius:12px;padding:16px;background:#1a1a2e">
+        <div style="font-size:1.5em;text-align:center;margin-bottom:8px">🧩</div>
+        <div style="font-weight:bold;color:#f0a500;text-align:center;margin-bottom:10px">3DMigoto 模组</div>
+        <div style="font-size:0.8em;color:#ccc;line-height:1.6">
+          3D 资源拦截 → 模型/贴图替换 → 皮肤 Mod 加载<br>
+          <span style="color:#888">难度: ⭐⭐⭐⭐⭐</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <div style="background:#16213e;padding:8px 14px;border-radius:6px;font-size:0.8em">
+        🖥️ <b>启动器 GUI</b> <span style="color:#888">(WPF/WinUI)</span>
+      </div>
+      <div style="background:#16213e;padding:8px 14px;border-radius:6px;font-size:0.8em">
+        ⚙️ <b>配置管理</b> <span style="color:#888">(预设切换/热键)</span>
+      </div>
+      <div style="background:#16213e;padding:8px 14px;border-radius:6px;font-size:0.8em">
+        💿 <b>安装程序</b> <span style="color:#888">(MSI/一键部署)</span>
+      </div>
+      <div style="background:#16213e;padding:8px 14px;border-radius:6px;font-size:0.8em">
+        🌍 <b>多语言</b> <span style="color:#888">(中/英/日/韩)</span>
+      </div>
+      <div style="background:#16213e;padding:8px 14px;border-radius:6px;font-size:0.8em">
+        🔄 <b>自动更新</b> <span style="color:#888">(winget/GitHub)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="mvp" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>🎯 MVP 最小可行</h3>
+      <p>只做 <b>启动器 + ReShade 着色器注入</b>，后续再迭代。适合快速验证、快速出成品。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="core" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>⚡ 核心三件套</h3>
+      <p>启动器 + <b>ReShade + FPS 解锁</b>，不碰 3DMigoto。这俩是玩家最关心的体验提升点。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="full" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>🏰 全功能复刻</h3>
+      <p>对齐原项目所有功能：ReShade + FPS Unlock + 3DMigoto + 安装器 + 多语言 + 自动更新。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="better" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>✨ 复刻 + 差异化</h3>
+      <p>全功能基础上加入自己的特色（比如 AI 自动调参、社区预设分享平台、更好的 UI/UX）。</p>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px;padding:12px;background:#16213e;border-radius:8px;font-size:0.85em;text-align:center">
+  <b style="color:#e94560">💡 我的建议：</b> 选 <b>B（核心三件套）</b> 起步最合理——ReShade 和 FPS 解锁是你最需要深入理解的两个引擎，3DMigoto 依赖大量外部社区代码，可以后续再接入。
+</div>

@@ -1,0 +1,87 @@
+<h2>📋 设计确认 · 第2节：核心引擎数据流</h2>
+<p class="subtitle">从「点启动」到「游戏跑起来」的完整链路</p>
+
+<div class="mockup">
+  <div class="mockup-header">🔁 启动 → 注入 → 运行 → 退出 完整流程</div>
+  <div class="mockup-body">
+<pre style="line-height:1.7;background:#0f0f23;padding:14px;border-radius:6px;font-size:0.78em">
+
+<span style="color:#888">Phase 1: 准备</span>
+  ┌──────────┐     ┌──────────────┐     ┌──────────────────┐
+  │ 用户点   │ ──→ │ 硬件指纹采集  │ ──→ │ AI 推荐预设组合  │
+  │ "启动"   │     │ DeviceIdent   │     │ Stella.Services  │
+  └──────────┘     └──────────────┘     └────────┬─────────┘
+                                                  │
+<span style="color:#888">Phase 2: 注入</span>                                    ▼
+  ┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
+  │ 部署 Native  │ ←── │ 暂停启动     │ ←── │ 创建游戏进程     │
+  │ DLL 到目录   │     │ (CREATE_SUSP)│     │ (GenshinImpact)  │
+  └──────┬───────┘     └──────────────┘     └──────────────────┘
+         │
+         ▼
+  ┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
+  │ 远程线程注入  │ ──→ │ DX Present   │ ──→ │ 恢复主线程       │
+  │ DXHook.dll   │     │ Hook 安装     │     │ ResumeThread     │
+  └──────────────┘     └──────────────┘     └──────────────────┘
+
+<span style="color:#888">Phase 3: 运行时</span>
+  ┌──────────────────────────────────────────────────────────────┐
+  │                   游戏进程空间内                               │
+  │  ┌───────────┐  ┌───────────┐  ┌────────────┐  ┌──────────┐ │
+  │  │ ReShade   │  │ FPS       │  │ 3DMigoto   │  │ Overlay  │ │
+  │  │ Hook:     │  │ Unlock:   │  │ Hook:      │  │ 渲染:    │ │
+  │  │ Present() │  │ 写内存    │  │ DrawIndex  │  │ FPS/GPU  │ │
+  │  │ → HLSL    │  │ 0xAABB →  │  │ → 替换Mesh │  │ 温度曲线  │ │
+  │  └───────────┘  └───────────┘  └────────────┘  └──────────┘ │
+  │                         ↕ Named Pipe / Shared Memory          │
+  └──────────────────────────────────────────────────────────────┘
+                           ↕
+  ┌──────────────────────────────────────────────────────────────┐
+  │                Stella.Launcher (WPF 主进程)                    │
+  │  实时显示：FPS曲线 · GPU负载 · 着色器开销 · AI推荐更新        │
+  └──────────────────────────────────────────────────────────────┘
+
+<span style="color:#888">Phase 4: 退出</span>
+  ┌──────────┐     ┌──────────────┐     ┌──────────────────┐
+  │ 游戏退出  │ ──→ │ 卸载所有Hook  │ ──→ │ 清理共享内存      │
+  │ 检测     │     │ 释放 DLL     │     │ 收集运行数据      │
+  └──────────┘     └──────────────┘     └──────────────────┘
+</pre>
+  </div>
+</div>
+
+<h3 style="margin-top:20px">关键技术决策</h3>
+
+<div style="display:flex;flex-wrap:wrap;gap:12px">
+  
+<div style="flex:1;min-width:230px;background:#1a1a2e;border-radius:8px;padding:14px">
+  <h4 style="color:#e94560">💉 注入方式</h4>
+  <p style="font-size:0.82em;color:#ccc">
+    <b>CREATE_SUSPENDED → CreateRemoteThread → LoadLibrary</b><br>
+    最经典可靠的方式。不碰游戏文件，纯运行时注入。兼容性好，不触发完整性校验。
+  </p>
+</div>
+
+<div style="flex:1;min-width:230px;background:#1a1a2e;border-radius:8px;padding:14px">
+  <h4 style="color:#533483">📡 IPC 通信</h4>
+  <p style="font-size:0.82em;color:#ccc">
+    游戏内 Overlay → 启动器 用 <b>Named Pipe</b><br>
+    性能数据用 <b>Shared Memory (MemoryMappedFile)</b><br>
+    前者低延迟指令，后者高吞吐数据——各司其职
+  </p>
+</div>
+
+<div style="flex:1;min-width:230px;background:#1a1a2e;border-radius:8px;padding:14px">
+  <h4 style="color:#f0a500">🛡️ 反作弊兼容</h4>
+  <p style="font-size:0.82em;color:#ccc">
+    <b>只 Hook DX Present()</b>，不碰游戏逻辑层。<br>
+    不修改 .text 段（代码段）——修改输入汇编、显示输出环节，风险最低。<br>
+    ⚠️ 每次游戏更新后需要验证偏移有效性。
+  </p>
+</div>
+
+</div>
+
+<div style="margin-top:16px;padding:12px;background:#16213e;border-radius:8px;font-size:0.85em;text-align:center">
+  这节<span style="color:#e94560;font-weight:bold">核心数据流 + 技术决策</span>看起来合理吗？有疑问的地方吗？
+</div>

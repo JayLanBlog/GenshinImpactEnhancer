@@ -1,0 +1,100 @@
+<h2>📋 设计确认 · 第5节：错误处理 & 容灾策略</h2>
+<p class="subtitle">这是一个游戏注入工具——容错能力直接决定用户体验和口碑</p>
+
+<div class="section">
+  <h3>💀 五大关键故障场景 & 应对</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+
+<div style="background:#1a1a2e;border-left:4px solid #e94560;border-radius:8px;padding:14px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <span style="font-weight:bold;color:#e94560">❌ 1. 注入失败</span>
+    <span style="font-size:0.7em;color:#888;background:#0f0f23;padding:2px 8px;border-radius:3px">游戏更新偏移变了 / 杀毒拦截 / 权限不足</span>
+  </div>
+  <div style="color:#ccc;font-size:0.85em">
+    应对：<b>降级启动——ReShade 注入失败 → 只启动游戏（纯净模式），弹出明确提示。</b><br>
+    FPS Unlock 失败 → ReShade 仍可工作。每个引擎独立判断，部分失败不影响其他。
+  </div>
+</div>
+
+<div style="background:#1a1a2e;border-left:4px solid #f0a500;border-radius:8px;padding:14px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <span style="font-weight:bold;color:#f0a500">💥 2. 游戏中途崩溃</span>
+    <span style="font-size:0.7em;color:#888;background:#0f0f23;padding:2px 8px;border-radius:3px">Hook 冲突 / 驱动问题 / 模组不兼容</span>
+  </div>
+  <div style="color:#ccc;font-size:0.85em">
+    应对：<b>崩溃信息自动捕获 → 生成诊断报告 → 下次启动时提示"检测到上次崩溃，是否以安全模式启动？"</b><br>
+    安全模式 = 仅注入最基础的 DX Hook，不加载任何自定义着色器/Mod。
+  </div>
+</div>
+
+<div style="background:#1a1a2e;border-left:4px solid #533483;border-radius:8px;padding:14px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <span style="font-weight:bold;color:#533483">📉 3. 性能异常（着色器开销突然飙升）</span>
+    <span style="font-size:0.7em;color:#888;background:#0f0f23;padding:2px 8px;border-radius:3px">某个着色器写坏了 / 新版本不兼容</span>
+  </div>
+  <div style="color:#ccc;font-size:0.85em">
+    应对：<b>性能仪表盘实时监控 → 如果 FPS 低于基准值 50% 超过 5 秒 → 游戏内 Overlay 弹出警告，"检测到性能异常，按 Ctrl+Shift+R 禁用最近启用的着色器"</b>
+  </div>
+</div>
+
+<div style="background:#1a1a2e;border-left:4px solid #00ff88;border-radius:8px;padding:14px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <span style="font-weight:bold;color:#00ff88">🔄 4. 游戏版本更新 → Hook 失效</span>
+    <span style="font-size:0.7em;color:#888;background:#0f0f23;padding:2px 8px;border-radius:3px">原神更新后内存布局变化</span>
+  </div>
+  <div style="color:#ccc;font-size:0.85em">
+    应对：<b>每次启动时对比游戏 .exe 的版本哈希 → 如果版本变更，自动从 GitHub API 下载最新偏移表。</b><br>
+    如果 API 也没有 → 回退到本地已知最后有效版本，尝试"前向兼容模式"（通过特征码搜索偏移）。
+  </div>
+</div>
+
+<div style="background:#1a1a2e;border-left:4px solid #6bcbff;border-radius:8px;padding:14px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <span style="font-weight:bold;color:#6bcbff">🌐 5. 网络不可用 → AI 推荐 / 更新 / 社区数据失效</span>
+    <span style="font-size:0.7em;color:#888;background:#0f0f23;padding:2px 8px;border-radius:3px">断网 / API 挂掉</span>
+  </div>
+  <div style="color:#ccc;font-size:0.85em">
+    应对：<b>全离线可用。AI 推荐退化为纯本地评分（只用性能数据），社区偏好权重置零。</b><br>
+    静默降级，不弹错误框干扰用户。
+  </div>
+</div>
+
+</div>
+
+<div class="section">
+  <h3>🛡️ 全局防护机制</h3>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:12px">
+
+<div style="flex:1;min-width:200px;background:#0f0f23;padding:14px;border-radius:8px;text-align:center">
+  <div style="font-size:1.5em;margin-bottom:4px">📝</div>
+  <div style="color:#ccc;font-weight:bold">结构化日志</div>
+  <div style="color:#888;font-size:0.8em;margin-top:4px">Serilog + Seq 兼容格式<br>按日期分文件 · 保留 7 天</div>
+</div>
+
+<div style="flex:1;min-width:200px;background:#0f0f23;padding:14px;border-radius:8px;text-align:center">
+  <div style="font-size:1.5em;margin-bottom:4px">📍</div>
+  <div style="color:#ccc;font-weight:bold">启动守卫</div>
+  <div style="color:#888;font-size:0.8em;margin-top:4px">检测上次是否崩溃<br>判断是否进入安全模式</div>
+</div>
+
+<div style="flex:1;min-width:200px;background:#0f0f23;padding:14px;border-radius:8px;text-align:center">
+  <div style="font-size:1.5em;margin-bottom:4px">🕐</div>
+  <div style="color:#ccc;font-weight:bold">超时保护</div>
+  <div style="color:#888;font-size:0.8em;margin-top:4px">注入超过 10 秒 → 取消<br>恢复游戏进程继续启动</div>
+</div>
+
+<div style="flex:1;min-width:200px;background:#0f0f23;padding:14px;border-radius:8px;text-align:center">
+  <div style="font-size:1.5em;margin-bottom:4px">💾</div>
+  <div style="color:#ccc;font-weight:bold">配置回滚</div>
+  <div style="color:#888;font-size:0.8em;margin-top:4px">每次修改配置前自动备份<br>崩溃后恢复上一版本</div>
+</div>
+
+</div>
+
+<div style="margin-top:16px;padding:12px;background:#16213e;border-radius:8px;font-size:0.9em;text-align:center">
+  这节<span style="color:#e94560;font-weight:bold">错误处理 & 容灾</span>策略——五大场景 + 四项防护，够不够全面？
+</div>

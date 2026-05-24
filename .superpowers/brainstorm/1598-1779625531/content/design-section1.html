@@ -1,0 +1,71 @@
+<h2>📋 设计确认 · 第1节：项目模块划分</h2>
+<p class="subtitle">分层单体架构下的完整模块拆解与依赖关系</p>
+
+<div class="mockup">
+  <div class="mockup-header">🏗️ 解决方案层级结构（自上而下）</div>
+  <div class="mockup-body">
+<pre style="line-height:1.7;background:#0f0f23;padding:14px;border-radius:6px;font-size:0.8em">
+GenshinStellaMod.sln
+│
+├── <span style="color:#e94560">🖥️ Presentation Layer（UI）</span>
+│   ├── Stella.Launcher          WPF 主程序 · 启动器界面 · 预设管理 · 仪表盘 · AI面板
+│   └── Stella.Welcome           首次引导 · 安装向导（不依赖注入引擎）
+│
+├── <span style="color:#f0a500">🧠 Application Layer（业务逻辑）</span>
+│   ├── Stella.Services          预设推荐AI · 性能采集 · 场景识别 · 配置管理
+│   └── Stella.Update            自动更新检查 · GitHub Release API · 增量下载
+│
+├── <span style="color:#533483">⚙️ Core Layer（引擎封装）</span>
+│   ├── Stella.Core              C# 侧引擎入口 · 生命周期管理 · 进程注入调度
+│   │
+│   ├── Stella.Core.Reshade      ReShade DLL 注入 · HLSL 预设解析 · DX Hook 管理
+│   ├── Stella.Core.FpsUnlock    内存偏移定位 · 帧率修改 · 版本适配表
+│   └── Stella.Core.Migoto       3DMigoto 封装 · 模组加载 · 资源替换
+│
+├── <span style="color:#00d2ff">🧬 Native Layer（原生 C++）</span>
+│   ├── Stella.Native.Injector   进程注入器 (CreateRemoteThread / SetWindowsHookEx)
+│   ├── Stella.Native.DXHook     DX11/DX12 Present Hook · 交换链劫持
+│   └── Stella.Native.Overlay    游戏内 Overlay 渲染 (FPS计数器 · 热键提示)
+│
+├── <span style="color:#888">🛠️ Infrastructure</span>
+│   ├── Stella.DeviceIdentifier  硬件指纹采集 · GPU/CPU/内存检测
+│   ├── Stella.Utils             通用工具 · 日志 · 文件系统
+│   └── Stella.StartupBeacon     开机自启 · 托盘常驻
+│
+├── <span style="color:#888">💿 Distribution</span>
+│   ├── Stella.Setup             MSI/EXE 安装器项目
+│   └── Stella.Builder           CI/CD 构建脚本 · NuGet 打包
+│
+└── <span style="color:#888">🧪 Tests</span>
+    └── Test.Genshin             集成测试 · 内存偏移验证 · 注入兼容性
+</pre>
+  </div>
+</div>
+
+<h3 style="margin-top:20px">依赖方向（铁律：上层 → 下层，绝不允许反向）</h3>
+
+<div class="mockup">
+  <div class="mockup-body">
+<pre style="line-height:1.8;background:#0f0f23;padding:10px;border-radius:6px;font-size:0.78em">
+  Launcher ──→ Services ──→ Core ──→ Native DLL
+     │                         │
+     └──→ Update              └──→ Reshade / FpsUnlock / Migoto
+                                    │
+                              DeviceIdentifier · Utils · StartupBeacon (被所有层引用)
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <h3>与原项目的差异</h3>
+  <ul>
+    <li>❌ <b>去掉 Git Submodule</b> → 改为单个仓库，所有模块放在一个 .sln 下，降低维护成本</li>
+    <li>➕ <b>新增 Stella.Services</b> → AI 推荐引擎 + 场景识别逻辑（你的差异化核心）</li>
+    <li>➕ <b>新增 Stella.Native.Overlay</b> → 游戏内性能仪表盘悬浮窗</li>
+    <li>🔀 <b>Stella.Core 拆为 4 个子模块</b> → 三个引擎各自独立 + 一个总入口</li>
+  </ul>
+</div>
+
+<div style="margin-top:16px;padding:12px;background:#16213e;border-radius:8px;font-size:0.85em;text-align:center">
+  这节<span style="color:#e94560;font-weight:bold">模块划分</span>看起来合理吗？有需要增减或调整的模块吗？
+</div>
