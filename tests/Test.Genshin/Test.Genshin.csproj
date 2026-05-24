@@ -26,6 +26,9 @@
     <ProjectReference Include="..\..\src\Infrastructure\Stella.DeviceIdentifier\Stella.DeviceIdentifier.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure\Stella.StartupBeacon\Stella.StartupBeacon.csproj" />
     <ProjectReference Include="..\..\src\Core\Stella.Core\Stella.Core.csproj" />
+    <ProjectReference Include="..\..\src\Core\Stella.Core.Reshade\Stella.Core.Reshade.csproj" />
+    <ProjectReference Include="..\..\src\Core\Stella.Core.FpsUnlock\Stella.Core.FpsUnlock.csproj" />
+    <ProjectReference Include="..\..\src\Core\Stella.Core.Migoto\Stella.Core.Migoto.csproj" />
   </ItemGroup>
 
 </Project>
