@@ -50,9 +50,6 @@ bool UnlinkModuleFromPEB(HMODULE hModule)
     if (ioPrev) ioPrev->Flink = ioNext;
     if (ioNext) ioNext->Blink = ioPrev;
 
-    // 清零 DllBase 标记（让扫描器认为是残留条目）
-    entry->DllBase = nullptr;
-
     return true;
 }
 

@@ -89,7 +89,7 @@ static DWORD WINAPI WindowThread(LPVOID)
     g_hwnd = CreateWindowExW(
         WS_EX_LAYERED | WS_EX_TOPMOST,
         OVERLAY_CLASS, L"Stella Mod Debug",
-        WS_POPUP | WS_VISIBLE,
+        WS_POPUP,
         10, 50, 380, 180,
         nullptr, nullptr, g_hModule, nullptr);
 
@@ -103,11 +103,10 @@ static DWORD WINAPI WindowThread(LPVOID)
         CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"Consolas");
     g_bgBrush = CreateSolidBrush(RGB(10, 10, 30));
 
-    ShowWindow(g_hwnd, SW_SHOW);
-    UpdateWindow(g_hwnd);
+    // Window starts HIDDEN - HOME key toggles it
     {
         wchar_t buf[256];
-        swprintf_s(buf, L"WindowThread: HWND=0x%p title='Stella Mod Debug'", g_hwnd);
+        swprintf_s(buf, L"WindowThread: HWND=0x%p (hidden, press HOME to show)", g_hwnd);
         Log(buf);
     }
 
