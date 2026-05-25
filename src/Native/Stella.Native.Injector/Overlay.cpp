@@ -5,10 +5,10 @@
 namespace Stella {
 namespace Overlay {
 
-static HWND g_hwnd = nullptr;
+static HWND g_hwndMsg = nullptr;   // hidden message-only window (for WM_HOTKEY)
+static HWND g_hwndOverlay = nullptr; // the actual overlay panel (created/destroyed on demand)
 static HBRUSH g_bgBrush = nullptr;
 static HFONT g_font = nullptr;
-static const wchar_t* OVERLAY_CLASS = L"StellaOverlayClass";
 static volatile bool g_running = false;
 static HMODULE g_hModule = nullptr;
 
@@ -23,11 +23,6 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
-    case WM_HOTKEY:
-        // F12 hotkey -> toggle Stella panel
-        if (wp == 1) Toggle();
-        return 0;
-
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
@@ -46,7 +41,9 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         SetTextColor(hdc, RGB(255, 255, 255));
         wchar_t buf[256];
         SYSTEMTIME st; GetLocalTime(&st);
-        swprintf_s(buf, L"PEB: Hidden | %02d:%02d:%02d", st.wHour, st.wMinute, st.wSecond);
+        swprintf_s(buf, L"PEB: %s | %02d:%02d:%02d",
+            cfg.rtlbaseLoaded ? L"Skipped (ReShade)" : L"Hidden",
+            st.wHour, st.wMinute, st.wSecond);
         TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 26;
 
         SetTextColor(hdc, RGB(80, 80, 100));
@@ -63,14 +60,14 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
 
         SetTextColor(hdc, RGB(0, 255, 80));
-        swprintf_s(buf, L"  Shaders: %d effects loaded", cfg.shaderCount);
+        swprintf_s(buf, L"  Shaders: %d effects", cfg.shaderCount);
         TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
 
         if (!cfg.presetPath.empty()) {
             SetTextColor(hdc, RGB(200, 200, 200));
             auto pos = cfg.presetPath.rfind(L'\\');
-            std::wstring presetName = pos != std::wstring::npos ? cfg.presetPath.substr(pos + 1) : cfg.presetPath;
-            swprintf_s(buf, L"  Preset: %s", presetName.c_str());
+            std::wstring pn = pos != std::wstring::npos ? cfg.presetPath.substr(pos + 1) : cfg.presetPath;
+            swprintf_s(buf, L"  Preset: %s", pn.c_str());
             TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
         }
 
@@ -78,71 +75,53 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         SetTextColor(hdc, RGB(255, 200, 0));
         TextOutW(hdc, 15, y, L"Hotkeys:", 9); y += 20;
         SetTextColor(hdc, RGB(200, 200, 200));
-        TextOutW(hdc, 15, y, L"  HOME  - ReShade shader panel", 29); y += 20;
-        TextOutW(hdc, 15, y, L"  F11   - Stella info panel", 26);
+        TextOutW(hdc, 15, y, L"  HOME  - ReShade panel", 22); y += 20;
+        TextOutW(hdc, 15, y, L"  F11   - Stella panel (toggle)", 30);
 
         EndPaint(hwnd, &ps);
         return 0;
     }
     case WM_ERASEBKGND: return 1;
-    case WM_DESTROY: PostQuitMessage(0); return 0;
+    case WM_DESTROY: return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+// Hotkey window proc (message-only, never visible)
+LRESULT CALLBACK HotkeyWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+    if (msg == WM_HOTKEY && wp == 1)
+    {
+        Toggle();
+        return 0;
     }
     return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
 static DWORD WINAPI WindowThread(LPVOID)
 {
-    Log(L"WindowThread: starting (RegisterHotKey, no LL hook)...");
+    Log(L"Thread: starting (message-only hotkey window)...");
 
-    CreateDirectoryW(L"C:\\Users\\86178\\AppData\\Local\\GenshinStellaMod", nullptr);
+    // Register a hidden message-only window just for WM_HOTKEY
+    // HWND_MESSAGE = never rendered, zero GPU interference
+    WNDCLASSEXW wcHotkey = {};
+    wcHotkey.cbSize = sizeof(wcHotkey);
+    wcHotkey.lpfnWndProc = HotkeyWndProc;
+    wcHotkey.hInstance = g_hModule;
+    wcHotkey.lpszClassName = L"StellaHotkeyClass";
+    RegisterClassExW(&wcHotkey);
 
-    WNDCLASSEXW wc = {};
-    wc.cbSize = sizeof(wc);
-    wc.lpfnWndProc = OverlayWndProc;
-    wc.hInstance = g_hModule;
-    wc.lpszClassName = OVERLAY_CLASS;
-    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wc.style = CS_HREDRAW | CS_VREDRAW;
-    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-    RegisterClassExW(&wc);
+    g_hwndMsg = CreateWindowExW(0, L"StellaHotkeyClass", L"", 0,
+        0, 0, 0, 0, HWND_MESSAGE, nullptr, g_hModule, nullptr);
 
-    g_hwnd = CreateWindowExW(
-        WS_EX_LAYERED | WS_EX_TOPMOST,
-        OVERLAY_CLASS, L"Stella Mod Debug",
-        WS_POPUP,
-        10, 50, 420, 340,
-        nullptr, nullptr, g_hModule, nullptr);
+    if (!g_hwndMsg) { Log(L"Thread: msg-only window FAILED"); return 1; }
 
-    if (!g_hwnd) { Log(L"WindowThread: CreateWindowEx FAILED"); return 1; }
-    Log(L"WindowThread: window created");
-
-    // Register F11 hotkey (F12 often taken by other apps)
-    if (RegisterHotKey(g_hwnd, 1, 0, VK_F11))
-        Log(L"WindowThread: F11 hotkey registered OK");
+    if (RegisterHotKey(g_hwndMsg, 1, 0, VK_F11))
+        Log(L"Thread: F11 hotkey OK (message-only window)");
     else
-        Log(L"WindowThread: F11 hotkey FAILED");
+        Log(L"Thread: F11 hotkey FAILED");
 
-    SetLayeredWindowAttributes(g_hwnd, RGB(8, 8, 28), 230, LWA_ALPHA | LWA_COLORKEY);
-
-    g_font = CreateFontW(17, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"Consolas");
-    g_bgBrush = CreateSolidBrush(RGB(8, 8, 28));
-
-    {
-        wchar_t buf[256];
-        swprintf_s(buf, L"WindowThread: HWND=0x%p (F12=Stella, HOME=ReShade, no LL hook)", g_hwnd);
-        Log(buf);
-    }
-
-    // Registry
-    HKEY hKey;
-    if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\StellaMod", 0, nullptr, REG_OPTION_VOLATILE, KEY_WRITE, nullptr, &hKey, nullptr) == ERROR_SUCCESS)
-    {
-        DWORD dwHwnd = (DWORD)(DWORD_PTR)g_hwnd;
-        RegSetValueExW(hKey, L"OverlayHWND", 0, REG_DWORD, (BYTE*)&dwHwnd, sizeof(dwHwnd));
-        RegCloseKey(hKey);
-    }
+    Log(L"Thread: running (no overlay window - zero GPU overhead)");
 
     g_running = true;
     MSG msg;
@@ -152,10 +131,12 @@ static DWORD WINAPI WindowThread(LPVOID)
         DispatchMessageW(&msg);
     }
 
-    Log(L"WindowThread: pump ended");
-    if (g_font) DeleteObject(g_font);
-    if (g_bgBrush) DeleteObject(g_bgBrush);
-    if (g_hwnd) DestroyWindow(g_hwnd);
+    Log(L"Thread: ended");
+    // Cleanup overlay if still shown
+    if (g_hwndOverlay) { DestroyWindow(g_hwndOverlay); g_hwndOverlay = nullptr; }
+    if (g_font) { DeleteObject(g_font); g_font = nullptr; }
+    if (g_bgBrush) { DeleteObject(g_bgBrush); g_bgBrush = nullptr; }
+    if (g_hwndMsg) { DestroyWindow(g_hwndMsg); g_hwndMsg = nullptr; }
     return 0;
 }
 
@@ -163,19 +144,60 @@ bool CreateAndShow(HMODULE hDllModule)
 {
     g_hModule = hDllModule;
     HANDLE h = CreateThread(nullptr, 0, WindowThread, nullptr, 0, nullptr);
-    if (h) { CloseHandle(h); Log(L"DllMain: thread started"); return true; }
+    if (h) { CloseHandle(h); Log(L"DllMain: hotkey thread started"); return true; }
     Log(L"DllMain: thread FAILED");
     return false;
 }
 
 static volatile LONG g_toggleCount = 0;
+static HFONT g_overlayFont = nullptr;
 
 void Toggle()
 {
-    if (!g_hwnd) return;
-    bool visible = IsWindowVisible(g_hwnd);
-    ShowWindow(g_hwnd, visible ? SW_HIDE : SW_SHOW);
-    if (!visible) InvalidateRect(g_hwnd, nullptr, TRUE);
+    if (g_hwndOverlay)
+    {
+        // DESTROY the overlay window completely
+        DestroyWindow(g_hwndOverlay);
+        g_hwndOverlay = nullptr;
+        Log(L"Toggle: overlay DESTROYED (zero GPU impact)");
+    }
+    else
+    {
+        // CREATE overlay window on demand
+        // Register the class if first time
+        WNDCLASSEXW wc = {};
+        wc.cbSize = sizeof(wc);
+        wc.lpfnWndProc = OverlayWndProc;
+        wc.hInstance = g_hModule;
+        wc.lpszClassName = L"StellaOverlayClass";
+        wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+        wc.style = CS_HREDRAW | CS_VREDRAW;
+        wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+        RegisterClassExW(&wc);
+
+        g_hwndOverlay = CreateWindowExW(
+            WS_EX_LAYERED | WS_EX_TOPMOST,
+            L"StellaOverlayClass", L"Stella Mod Debug",
+            WS_POPUP,
+            10, 50, 420, 340,
+            nullptr, nullptr, g_hModule, nullptr);
+
+        if (!g_hwndOverlay) { Log(L"Toggle: CreateWindow FAILED"); return; }
+
+        SetLayeredWindowAttributes(g_hwndOverlay, RGB(8, 8, 28), 230, LWA_ALPHA);
+
+        // Create GDI objects on demand
+        if (!g_font)
+            g_font = CreateFontW(17, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"Consolas");
+        if (!g_bgBrush)
+            g_bgBrush = CreateSolidBrush(RGB(8, 8, 28));
+
+        ShowWindow(g_hwndOverlay, SW_SHOW);
+        UpdateWindow(g_hwndOverlay);
+        Log(L"Toggle: overlay CREATED");
+    }
 
     LONG count = InterlockedIncrement(&g_toggleCount);
     HKEY hKey;
@@ -187,12 +209,12 @@ void Toggle()
     }
 }
 
-bool IsVisible() { return g_hwnd && IsWindowVisible(g_hwnd); }
+bool IsVisible() { return g_hwndOverlay != nullptr && IsWindowVisible(g_hwndOverlay); }
 
 void Shutdown()
 {
     g_running = false;
-    if (g_hwnd) PostMessageW(g_hwnd, WM_QUIT, 0, 0);
+    if (g_hwndMsg) PostMessageW(g_hwndMsg, WM_QUIT, 0, 0);
     Log(L"Shutdown");
 }
 
