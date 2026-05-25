@@ -1,10 +1,10 @@
 #include "Overlay.h"
+#include "ReShadeConfig.h"
 #include <stdio.h>
 
 namespace Stella {
 namespace Overlay {
 
-static HHOOK g_hHook = nullptr;
 static HWND g_hwnd = nullptr;
 static HBRUSH g_bgBrush = nullptr;
 static HFONT g_font = nullptr;
@@ -23,6 +23,11 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
+    case WM_HOTKEY:
+        // F12 hotkey -> toggle Stella panel
+        if (wp == 1) Toggle();
+        return 0;
+
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
@@ -32,20 +37,49 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         SetBkMode(hdc, TRANSPARENT);
         SelectObject(hdc, g_font);
 
+        const auto& cfg = ReShadeConfig::GetConfig();
+        int y = 12;
+
         SetTextColor(hdc, RGB(0, 255, 80));
-        TextOutW(hdc, 15, 12, L"Genshin Stella Mod", 19);
+        TextOutW(hdc, 15, y, L"Genshin Stella Mod v1.2", 22); y += 30;
 
         SetTextColor(hdc, RGB(255, 255, 255));
-        wchar_t buf[128];
+        wchar_t buf[256];
         SYSTEMTIME st; GetLocalTime(&st);
-        swprintf_s(buf, L"Time: %02d:%02d:%02d | PEB: Hidden", st.wHour, st.wMinute, st.wSecond);
-        TextOutW(hdc, 15, 42, buf, (int)wcslen(buf));
+        swprintf_s(buf, L"PEB: Hidden | %02d:%02d:%02d", st.wHour, st.wMinute, st.wSecond);
+        TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 26;
+
+        SetTextColor(hdc, RGB(80, 80, 100));
+        TextOutW(hdc, 15, y, L"--------------------------------", 32); y += 22;
+
+        SetTextColor(hdc, RGB(0, 200, 255));
+        TextOutW(hdc, 15, y, L"ReShade", 8); y += 24;
+
+        SetTextColor(hdc, RGB(255, 255, 255));
+        swprintf_s(buf, L"  rtlbase.dll: %s", cfg.rtlbaseLoaded ? L"LOADED" : L"NOT FOUND");
+        TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+
+        swprintf_s(buf, L"  ReShade.ini: %s", cfg.iniLoaded ? L"LOADED" : L"NOT FOUND");
+        TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
 
         SetTextColor(hdc, RGB(0, 255, 80));
-        TextOutW(hdc, 15, 74, L"DLL: Injected | PEB: Hidden", 27);
+        swprintf_s(buf, L"  Shaders: %d effects loaded", cfg.shaderCount);
+        TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
 
+        if (!cfg.presetPath.empty()) {
+            SetTextColor(hdc, RGB(200, 200, 200));
+            auto pos = cfg.presetPath.rfind(L'\\');
+            std::wstring presetName = pos != std::wstring::npos ? cfg.presetPath.substr(pos + 1) : cfg.presetPath;
+            swprintf_s(buf, L"  Preset: %s", presetName.c_str());
+            TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+        }
+
+        y += 4;
         SetTextColor(hdc, RGB(255, 200, 0));
-        TextOutW(hdc, 15, 110, L"Debug panel active!", 19);
+        TextOutW(hdc, 15, y, L"Hotkeys:", 9); y += 20;
+        SetTextColor(hdc, RGB(200, 200, 200));
+        TextOutW(hdc, 15, y, L"  HOME  - ReShade shader panel", 29); y += 20;
+        TextOutW(hdc, 15, y, L"  F11   - Stella info panel", 26);
 
         EndPaint(hwnd, &ps);
         return 0;
@@ -56,24 +90,10 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
-// Window + message pump + keyboard hook all in ONE thread
 static DWORD WINAPI WindowThread(LPVOID)
 {
-    Log(L"WindowThread: starting...");
+    Log(L"WindowThread: starting (RegisterHotKey, no LL hook)...");
 
-    // Install global keyboard hook FIRST (before window creation)
-    // WH_KEYBOARD_LL catches all key presses system-wide
-    HHOOK hHook = SetWindowsHookExW(WH_KEYBOARD_LL, [](int code, WPARAM wp, LPARAM lp) -> LRESULT {
-        if (code == HC_ACTION && wp == WM_KEYDOWN) {
-            if (((KBDLLHOOKSTRUCT*)lp)->vkCode == VK_HOME) {
-                Toggle();
-            }
-        }
-        return CallNextHookEx(nullptr, code, wp, lp);
-    }, nullptr, 0);
-    g_hHook = hHook;
-    if (hHook) Log(L"WindowThread: keyboard hook installed OK");
-    else Log(L"WindowThread: keyboard hook FAILED");
     CreateDirectoryW(L"C:\\Users\\86178\\AppData\\Local\\GenshinStellaMod", nullptr);
 
     WNDCLASSEXW wc = {};
@@ -90,37 +110,40 @@ static DWORD WINAPI WindowThread(LPVOID)
         WS_EX_LAYERED | WS_EX_TOPMOST,
         OVERLAY_CLASS, L"Stella Mod Debug",
         WS_POPUP,
-        10, 50, 380, 180,
+        10, 50, 420, 340,
         nullptr, nullptr, g_hModule, nullptr);
 
     if (!g_hwnd) { Log(L"WindowThread: CreateWindowEx FAILED"); return 1; }
     Log(L"WindowThread: window created");
 
-    SetLayeredWindowAttributes(g_hwnd, RGB(10, 10, 30), 220, LWA_ALPHA | LWA_COLORKEY);
+    // Register F11 hotkey (F12 often taken by other apps)
+    if (RegisterHotKey(g_hwnd, 1, 0, VK_F11))
+        Log(L"WindowThread: F11 hotkey registered OK");
+    else
+        Log(L"WindowThread: F11 hotkey FAILED");
 
-    g_font = CreateFontW(20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+    SetLayeredWindowAttributes(g_hwnd, RGB(8, 8, 28), 230, LWA_ALPHA | LWA_COLORKEY);
+
+    g_font = CreateFontW(17, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"Consolas");
-    g_bgBrush = CreateSolidBrush(RGB(10, 10, 30));
+    g_bgBrush = CreateSolidBrush(RGB(8, 8, 28));
 
-    // Window starts HIDDEN - HOME key toggles it
     {
         wchar_t buf[256];
-        swprintf_s(buf, L"WindowThread: HWND=0x%p (hidden, press HOME to show)", g_hwnd);
+        swprintf_s(buf, L"WindowThread: HWND=0x%p (F12=Stella, HOME=ReShade, no LL hook)", g_hwnd);
         Log(buf);
     }
 
-    // Write HWND to registry so test tool can verify
+    // Registry
     HKEY hKey;
     if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\StellaMod", 0, nullptr, REG_OPTION_VOLATILE, KEY_WRITE, nullptr, &hKey, nullptr) == ERROR_SUCCESS)
     {
         DWORD dwHwnd = (DWORD)(DWORD_PTR)g_hwnd;
         RegSetValueExW(hKey, L"OverlayHWND", 0, REG_DWORD, (BYTE*)&dwHwnd, sizeof(dwHwnd));
         RegCloseKey(hKey);
-        Log(L"HWND written to registry");
     }
 
-    // Message pump (on the window's thread)
     g_running = true;
     MSG msg;
     while (g_running && GetMessageW(&msg, nullptr, 0, 0))
@@ -130,7 +153,6 @@ static DWORD WINAPI WindowThread(LPVOID)
     }
 
     Log(L"WindowThread: pump ended");
-    if (g_hHook) UnhookWindowsHookEx(g_hHook);
     if (g_font) DeleteObject(g_font);
     if (g_bgBrush) DeleteObject(g_bgBrush);
     if (g_hwnd) DestroyWindow(g_hwnd);
@@ -151,8 +173,10 @@ static volatile LONG g_toggleCount = 0;
 void Toggle()
 {
     if (!g_hwnd) return;
-    ShowWindow(g_hwnd, IsWindowVisible(g_hwnd) ? SW_HIDE : SW_SHOW);
-    // Write toggle count to registry for test verification
+    bool visible = IsWindowVisible(g_hwnd);
+    ShowWindow(g_hwnd, visible ? SW_HIDE : SW_SHOW);
+    if (!visible) InvalidateRect(g_hwnd, nullptr, TRUE);
+
     LONG count = InterlockedIncrement(&g_toggleCount);
     HKEY hKey;
     if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\StellaMod", 0, nullptr, REG_OPTION_VOLATILE, KEY_WRITE, nullptr, &hKey, nullptr) == ERROR_SUCCESS)
