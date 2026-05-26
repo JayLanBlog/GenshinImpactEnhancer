@@ -1,5 +1,5 @@
 using Xunit;
-using Stella.StartupBeacon;
+using GIEnhancer.StartupBeacon;
 
 namespace Test.Genshin.StartupBeacon;
 

@@ -1,5 +1,5 @@
 using Xunit;
-using Stella.Core;
+using GIEnhancer.Core;
 
 namespace Test.Genshin.Core;
 

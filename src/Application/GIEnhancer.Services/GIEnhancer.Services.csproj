@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Infrastructure\GIEnhancer.Utils\GIEnhancer.Utils.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\GIEnhancer.DeviceIdentifier\GIEnhancer.DeviceIdentifier.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

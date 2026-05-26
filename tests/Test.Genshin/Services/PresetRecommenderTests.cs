@@ -1,6 +1,6 @@
 using Xunit;
-using Stella.DeviceIdentifier;
-using Stella.Services;
+using GIEnhancer.DeviceIdentifier;
+using GIEnhancer.Services;
 
 namespace Test.Genshin.Services;
 

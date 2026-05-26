@@ -1,5 +1,5 @@
 using Xunit;
-using Stella.DeviceIdentifier;
+using GIEnhancer.DeviceIdentifier;
 
 namespace Test.Genshin.DeviceIdentifier;
 

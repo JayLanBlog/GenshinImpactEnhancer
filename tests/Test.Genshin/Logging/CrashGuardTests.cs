@@ -1,6 +1,6 @@
 using System.IO;
 using Xunit;
-using Stella.Utils.Logging;
+using GIEnhancer.Utils.Logging;
 
 namespace Test.Genshin.Logging;
 

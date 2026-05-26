@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Infrastructure\GIEnhancer.Utils\GIEnhancer.Utils.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\GIEnhancer.DeviceIdentifier\GIEnhancer.DeviceIdentifier.csproj" />
+    <ProjectReference Include="..\..\Core\GIEnhancer.Core\GIEnhancer.Core.csproj" />
+    <ProjectReference Include="..\..\Core\GIEnhancer.Core.Reshade\GIEnhancer.Core.Reshade.csproj" />
+    <ProjectReference Include="..\..\Core\GIEnhancer.Core.FpsUnlock\GIEnhancer.Core.FpsUnlock.csproj" />
+    <ProjectReference Include="..\..\Core\GIEnhancer.Core.Migoto\GIEnhancer.Core.Migoto.csproj" />
+    <ProjectReference Include="..\..\Application\GIEnhancer.Services\GIEnhancer.Services.csproj" />
+    <ProjectReference Include="..\..\Application\GIEnhancer.Update\GIEnhancer.Update.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+</Project>

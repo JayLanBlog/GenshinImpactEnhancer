@@ -1,8 +1,8 @@
 using Xunit;
-using Stella.Core;
-using Stella.Core.Reshade;
-using Stella.Core.FpsUnlock;
-using Stella.Core.Migoto;
+using GIEnhancer.Core;
+using GIEnhancer.Core.Reshade;
+using GIEnhancer.Core.FpsUnlock;
+using GIEnhancer.Core.Migoto;
 
 namespace Test.Genshin.Core;
 

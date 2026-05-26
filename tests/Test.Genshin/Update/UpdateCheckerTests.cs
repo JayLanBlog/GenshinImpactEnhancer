@@ -1,5 +1,5 @@
 using Xunit;
-using Stella.Update;
+using GIEnhancer.Update;
 
 namespace Test.Genshin.Update;
 

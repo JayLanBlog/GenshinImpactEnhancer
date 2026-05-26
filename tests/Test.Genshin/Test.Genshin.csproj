@@ -22,15 +22,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Infrastructure\Stella.Utils\Stella.Utils.csproj" />
-    <ProjectReference Include="..\..\src\Infrastructure\Stella.DeviceIdentifier\Stella.DeviceIdentifier.csproj" />
-    <ProjectReference Include="..\..\src\Infrastructure\Stella.StartupBeacon\Stella.StartupBeacon.csproj" />
-    <ProjectReference Include="..\..\src\Core\Stella.Core\Stella.Core.csproj" />
-    <ProjectReference Include="..\..\src\Core\Stella.Core.Reshade\Stella.Core.Reshade.csproj" />
-    <ProjectReference Include="..\..\src\Core\Stella.Core.FpsUnlock\Stella.Core.FpsUnlock.csproj" />
-    <ProjectReference Include="..\..\src\Core\Stella.Core.Migoto\Stella.Core.Migoto.csproj" />
-    <ProjectReference Include="..\..\src\Application\Stella.Services\Stella.Services.csproj" />
-    <ProjectReference Include="..\..\src\Application\Stella.Update\Stella.Update.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\GIEnhancer.Utils\GIEnhancer.Utils.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\GIEnhancer.DeviceIdentifier\GIEnhancer.DeviceIdentifier.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\GIEnhancer.StartupBeacon\GIEnhancer.StartupBeacon.csproj" />
+    <ProjectReference Include="..\..\src\Core\GIEnhancer.Core\GIEnhancer.Core.csproj" />
+    <ProjectReference Include="..\..\src\Core\GIEnhancer.Core.Reshade\GIEnhancer.Core.Reshade.csproj" />
+    <ProjectReference Include="..\..\src\Core\GIEnhancer.Core.FpsUnlock\GIEnhancer.Core.FpsUnlock.csproj" />
+    <ProjectReference Include="..\..\src\Core\GIEnhancer.Core.Migoto\GIEnhancer.Core.Migoto.csproj" />
+    <ProjectReference Include="..\..\src\Application\GIEnhancer.Services\GIEnhancer.Services.csproj" />
+    <ProjectReference Include="..\..\src\Application\GIEnhancer.Update\GIEnhancer.Update.csproj" />
   </ItemGroup>
 
 </Project>
