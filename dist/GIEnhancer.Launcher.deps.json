@@ -1,0 +1,207 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v6.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v6.0": {
+      "GIEnhancer.Launcher/1.0.0": {
+        "dependencies": {
+          "GIEnhancer.Core": "1.0.0",
+          "GIEnhancer.Core.FpsUnlock": "1.0.0",
+          "GIEnhancer.Core.Migoto": "1.0.0",
+          "GIEnhancer.Core.Reshade": "1.0.0",
+          "GIEnhancer.DeviceIdentifier": "1.0.0",
+          "GIEnhancer.Services": "1.0.0",
+          "GIEnhancer.Update": "1.0.0",
+          "GIEnhancer.Utils": "1.0.0"
+        },
+        "runtime": {
+          "GIEnhancer.Launcher.dll": {}
+        }
+      },
+      "Serilog/4.3.1": {
+        "runtime": {
+          "lib/net6.0/Serilog.dll": {
+            "assemblyVersion": "4.3.0.0",
+            "fileVersion": "4.3.0.0"
+          }
+        }
+      },
+      "Serilog.Sinks.File/7.0.0": {
+        "dependencies": {
+          "Serilog": "4.3.1"
+        },
+        "runtime": {
+          "lib/net6.0/Serilog.Sinks.File.dll": {
+            "assemblyVersion": "7.0.0.0",
+            "fileVersion": "7.0.0.0"
+          }
+        }
+      },
+      "System.CodeDom/6.0.0": {},
+      "System.Management/6.0.0": {
+        "dependencies": {
+          "System.CodeDom": "6.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/System.Management.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "6.0.21.52210"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net6.0/System.Management.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "6.0.21.52210"
+          }
+        }
+      },
+      "GIEnhancer.Core/1.0.0": {
+        "dependencies": {
+          "GIEnhancer.Utils": "1.0.0"
+        },
+        "runtime": {
+          "GIEnhancer.Core.dll": {}
+        }
+      },
+      "GIEnhancer.Core.FpsUnlock/1.0.0": {
+        "dependencies": {
+          "GIEnhancer.Core": "1.0.0"
+        },
+        "runtime": {
+          "GIEnhancer.Core.FpsUnlock.dll": {}
+        }
+      },
+      "GIEnhancer.Core.Migoto/1.0.0": {
+        "dependencies": {
+          "GIEnhancer.Core": "1.0.0"
+        },
+        "runtime": {
+          "GIEnhancer.Core.Migoto.dll": {}
+        }
+      },
+      "GIEnhancer.Core.Reshade/1.0.0": {
+        "dependencies": {
+          "GIEnhancer.Core": "1.0.0"
+        },
+        "runtime": {
+          "GIEnhancer.Core.Reshade.dll": {}
+        }
+      },
+      "GIEnhancer.DeviceIdentifier/1.0.0": {
+        "dependencies": {
+          "GIEnhancer.Utils": "1.0.0",
+          "System.Management": "6.0.0"
+        },
+        "runtime": {
+          "GIEnhancer.DeviceIdentifier.dll": {}
+        }
+      },
+      "GIEnhancer.Services/1.0.0": {
+        "dependencies": {
+          "GIEnhancer.DeviceIdentifier": "1.0.0",
+          "GIEnhancer.Utils": "1.0.0"
+        },
+        "runtime": {
+          "GIEnhancer.Services.dll": {}
+        }
+      },
+      "GIEnhancer.Update/1.0.0": {
+        "dependencies": {
+          "GIEnhancer.Utils": "1.0.0"
+        },
+        "runtime": {
+          "GIEnhancer.Update.dll": {}
+        }
+      },
+      "GIEnhancer.Utils/1.0.0": {
+        "dependencies": {
+          "Serilog": "4.3.1",
+          "Serilog.Sinks.File": "7.0.0"
+        },
+        "runtime": {
+          "GIEnhancer.Utils.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "GIEnhancer.Launcher/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Serilog/4.3.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-savYe7h5yRlkqBVOwP8cIRDOdqKiPmYCU4W87JH38sBmcKD5EBoXvQIw6bNEvZ/pTe1gsiye3VFCzBsoppGkXQ==",
+      "path": "serilog/4.3.1",
+      "hashPath": "serilog.4.3.1.nupkg.sha512"
+    },
+    "Serilog.Sinks.File/7.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-fKL7mXv7qaiNBUC71ssvn/dU0k9t0o45+qm2XgKAlSt19xF+ijjxyA3R6HmCgfKEKwfcfkwWjayuQtRueZFkYw==",
+      "path": "serilog.sinks.file/7.0.0",
+      "hashPath": "serilog.sinks.file.7.0.0.nupkg.sha512"
+    },
+    "System.CodeDom/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-CPc6tWO1LAer3IzfZufDBRL+UZQcj5uS207NHALQzP84Vp/z6wF0Aa0YZImOQY8iStY0A2zI/e3ihKNPfUm8XA==",
+      "path": "system.codedom/6.0.0",
+      "hashPath": "system.codedom.6.0.0.nupkg.sha512"
+    },
+    "System.Management/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-sHsESYMmPDhQuOC66h6AEOs/XowzKsbT9srMbX71TCXP58hkpn1BqBjdmKj1+DCA/WlBETX1K5WjQHwmV0Txrg==",
+      "path": "system.management/6.0.0",
+      "hashPath": "system.management.6.0.0.nupkg.sha512"
+    },
+    "GIEnhancer.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GIEnhancer.Core.FpsUnlock/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GIEnhancer.Core.Migoto/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GIEnhancer.Core.Reshade/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GIEnhancer.DeviceIdentifier/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GIEnhancer.Services/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GIEnhancer.Update/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GIEnhancer.Utils/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

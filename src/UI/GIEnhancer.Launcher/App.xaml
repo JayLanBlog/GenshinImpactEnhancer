@@ -1,7 +1,7 @@
-﻿<Application x:Class="Stella.Launcher.App"
+﻿<Application x:Class="GIEnhancer.Launcher.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:Stella.Launcher"
+             xmlns:local="clr-namespace:GIEnhancer.Launcher"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
          
