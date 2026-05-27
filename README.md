@@ -20,6 +20,13 @@
 
 ## 🏗 功能架构
 
+<p align="center">
+  <img src="assets/architecture_diagram.png" alt="Genshin Impact Enhancer Architecture" width="100%">
+</p>
+
+<details>
+<summary>📋 点击展开文本版架构图</summary>
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                     Genshin Impact Enhancer                      │
@@ -71,6 +78,8 @@
 │  └──────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+</details>
 
 ---
 
