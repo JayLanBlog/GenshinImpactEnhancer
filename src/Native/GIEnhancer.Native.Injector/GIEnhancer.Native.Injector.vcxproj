@@ -31,6 +31,7 @@
     <ClInclude Include="AntiCheat.h" />
     <ClInclude Include="Overlay.h" />
     <ClInclude Include="ReShadeConfig.h" />
+    <ClInclude Include="MigotoConfig.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -38,6 +39,7 @@
     <ClCompile Include="AntiCheat.cpp" />
     <ClCompile Include="Overlay.cpp" />
     <ClCompile Include="ReShadeConfig.cpp" />
+    <ClCompile Include="MigotoConfig.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

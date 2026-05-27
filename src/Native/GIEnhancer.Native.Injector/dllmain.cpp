@@ -2,6 +2,7 @@
 #include "AntiCheat.h"
 #include "Overlay.h"
 #include "ReShadeConfig.h"
+#include "MigotoConfig.h"
 #include <stdio.h>
 
 static void Log(const wchar_t* msg)
@@ -37,6 +38,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
         GetCurrentDirectoryW(MAX_PATH, gameDir);
         bool reshadeIni = GIEnhancer::ReShadeConfig::Load(gameDir);
         Log(reshadeIni ? L"DllMain: ReShade.ini loaded" : L"DllMain: ReShade.ini not found");
+
+        // Load 3DMigoto config
+        bool migotoIni = GIEnhancer::MigotoConfig::Load(gameDir);
+        Log(migotoIni ? L"DllMain: d3dx.ini loaded" : L"DllMain: d3dx.ini not found");
 
         // Detect rtlbase
         bool rtlLoaded = GIEnhancer::ReShadeConfig::DetectRtlbase();

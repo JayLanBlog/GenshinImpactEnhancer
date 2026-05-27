@@ -1,5 +1,6 @@
 #include "Overlay.h"
 #include "ReShadeConfig.h"
+#include "MigotoConfig.h"
 #include <stdio.h>
 
 namespace GIEnhancer {
@@ -19,6 +20,31 @@ static void Log(const wchar_t* msg)
     if (f) { fwprintf_s(f, L"%s\n", msg); fclose(f); }
 }
 
+// Helper: VK code to short name
+static const wchar_t* VkName(int vk)
+{
+    switch (vk) {
+    case 0x24: return L"HOME";
+    case 0x23: return L"END";
+    case 0x2D: return L"INSERT";
+    case 0x2E: return L"DELETE";
+    case 0x2C: return L"PRTSC";
+    case 0x21: return L"PGUP";
+    case 0x22: return L"PGDN";
+    case 0x0D: return L"ENTER";
+    case 0x09: return L"TAB";
+    case 0x1B: return L"ESC";
+    case 0x20: return L"SPACE";
+    default:
+        if (vk >= 0x70 && vk <= 0x87) {
+            static wchar_t buf[8];
+            swprintf_s(buf, L"F%d", vk - 0x70 + 1);
+            return buf;
+        }
+        return L"?";
+    }
+}
+
 LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg)
@@ -33,11 +59,14 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         SelectObject(hdc, g_font);
 
         const auto& cfg = ReShadeConfig::GetConfig();
+        const auto& mcfg = MigotoConfig::GetConfig();
         int y = 12;
 
+        // Title
         SetTextColor(hdc, RGB(0, 255, 80));
         TextOutW(hdc, 15, y, L"Genshin Impact Enhancer v1.2", 29); y += 30;
 
+        // PEB status
         SetTextColor(hdc, RGB(255, 255, 255));
         wchar_t buf[256];
         SYSTEMTIME st; GetLocalTime(&st);
@@ -46,9 +75,11 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             st.wHour, st.wMinute, st.wSecond);
         TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 26;
 
+        // Separator
         SetTextColor(hdc, RGB(80, 80, 100));
         TextOutW(hdc, 15, y, L"--------------------------------", 32); y += 22;
 
+        // ReShade section
         SetTextColor(hdc, RGB(0, 200, 255));
         TextOutW(hdc, 15, y, L"ReShade", 8); y += 24;
 
@@ -72,11 +103,51 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
 
         y += 4;
+
+        // 3DMigoto section
+        SetTextColor(hdc, RGB(255, 165, 0)); // Orange
+        TextOutW(hdc, 15, y, L"3DMigoto", 9); y += 24;
+
+        SetTextColor(hdc, RGB(255, 255, 255));
+        swprintf_s(buf, L"  d3d11.dll: %s", mcfg.d3d11Present ? L"DEPLOYED" : L"NOT FOUND");
+        TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+
+        swprintf_s(buf, L"  d3dx.ini: %s", mcfg.d3dxIniPresent ? L"LOADED" : L"NOT FOUND");
+        TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+
+        if (mcfg.iniLoaded) {
+            swprintf_s(buf, L"  Hunting: %s", mcfg.huntingEnabled ? L"ENABLED" : L"DISABLED");
+            TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+
+            // Show screenshot hotkey if configured
+            auto it = mcfg.hotkeys.find(L"take_screenshot");
+            if (it != mcfg.hotkeys.end()) {
+                swprintf_s(buf, L"  Screenshot key: %s (0x%02X)", VkName(it->second), it->second);
+                TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+            }
+        }
+
+        y += 4;
+
+        // Separator
+        SetTextColor(hdc, RGB(80, 80, 100));
+        TextOutW(hdc, 15, y, L"--------------------------------", 32); y += 22;
+
+        // Hotkeys section
         SetTextColor(hdc, RGB(255, 200, 0));
         TextOutW(hdc, 15, y, L"Hotkeys:", 9); y += 20;
         SetTextColor(hdc, RGB(200, 200, 200));
         TextOutW(hdc, 15, y, L"  HOME  - ReShade panel", 22); y += 20;
-        TextOutW(hdc, 15, y, L"  F11   - Enhancer panel (toggle)", 32);
+        TextOutW(hdc, 15, y, L"  F11   - Enhancer panel (toggle)", 32); y += 20;
+
+        // Show 3DMigoto screenshot key if different from defaults
+        if (mcfg.iniLoaded) {
+            auto it = mcfg.hotkeys.find(L"take_screenshot");
+            if (it != mcfg.hotkeys.end() && it->second != 0x2C) { // Not PrintScreen
+                swprintf_s(buf, L"  %s   - 3DMigoto screenshot", VkName(it->second));
+                TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+            }
+        }
 
         EndPaint(hwnd, &ps);
         return 0;
@@ -179,7 +250,7 @@ void Toggle()
             WS_EX_LAYERED | WS_EX_TOPMOST,
             L"GIEnhancerOverlayClass", L"Genshin Impact Enhancer",
             WS_POPUP,
-            10, 50, 420, 340,
+            10, 50, 420, 400,  // Increased height for 3DMigoto section
             nullptr, nullptr, g_hModule, nullptr);
 
         if (!g_hwndOverlay) { Log(L"Toggle: CreateWindow FAILED"); return; }

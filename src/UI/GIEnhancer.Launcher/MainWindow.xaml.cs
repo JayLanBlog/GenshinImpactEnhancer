@@ -21,6 +21,8 @@ namespace GIEnhancer.Launcher;
 public partial class MainWindow : Window
 {
     private EngineManager? _engineManager;
+    private ReshadeEngine? _reshadeEngine;
+    private MigotoEngine? _migotoEngine;
     private DeviceInfo? _deviceInfo;
     private IntPtr _gameProcessHandle;
     private IntPtr _gameThreadHandle;
@@ -127,16 +129,61 @@ public partial class MainWindow : Window
 
         try
         {
-            // 1. 初始化引擎
-            AppendLog("⚙️ 初始化引擎模块...");
-            var engines = new IEngineModule[] { new ReshadeEngine(), new FpsUnlockEngine { TargetFps = 144 }, new MigotoEngine() };
-            _engineManager = new EngineManager(engines);
             var gameDir = Path.GetDirectoryName(gamePath) ?? "";
+
+            // 1. 初始化引擎（同时部署 ReShade + 3DMigoto DLL 到游戏目录）
+            AppendLog("⚙️ 初始化引擎模块...");
+            _reshadeEngine = new ReshadeEngine();
+            _migotoEngine = new MigotoEngine();
+            var engines = new IEngineModule[] { _reshadeEngine, new FpsUnlockEngine { TargetFps = 144 }, _migotoEngine };
+            _engineManager = new EngineManager(engines);
             await _engineManager.LaunchAllAsync(gameDir);
             foreach (var eng in _engineManager.Engines)
                 AppendLog($"  {(eng.IsInitialized ? "✅" : "❌")} {eng.Name}");
 
-            // 2. 挂起创建游戏进程
+            // 2. 热键冲突检测（仅在 3DMigoto 和 ReShade 都加载时）
+            if (_migotoEngine.IsInitialized)
+            {
+                AppendLog("🔍 检测热键冲突...");
+                var reshadeKeys = ReadReshadeHotkeys(gameDir);
+                var migotoKeys = _migotoEngine.GetHotkeys();
+
+                var resolver = new HotkeyConflictResolver();
+                var conflicts = resolver.DetectConflicts(reshadeKeys, migotoKeys);
+
+                if (conflicts.Count > 0)
+                {
+                    AppendLog($"⚠️ 检测到 {conflicts.Count} 个热键冲突！");
+                    foreach (var c in conflicts)
+                        AppendLog($"  🔑 {c.KeyName}: ReShade [{string.Join(", ", c.ReShadeUsages)}] vs 3DMigoto [{string.Join(", ", c.MigotoUsages)}]");
+
+                    // 弹出冲突解决对话框
+                    var dlg = new HotkeyConflictDialog(conflicts);
+                    dlg.Owner = this;
+                    dlg.ShowDialog();
+
+                    if (!dlg.Applied)
+                    {
+                        AppendLog("⏹ 用户取消启动");
+                        BtnLaunch.IsEnabled = true; BtnSearch.IsEnabled = true;
+                        await _engineManager.ShutdownAllAsync();
+                        return;
+                    }
+
+                    // 应用用户选择的解决方案
+                    foreach (var conflict in conflicts)
+                    {
+                        resolver.ApplyResolution(conflict, gameDir);
+                    }
+                    AppendLog("✅ 热键冲突已解决");
+                }
+                else
+                {
+                    AppendLog("✅ 无热键冲突");
+                }
+            }
+
+            // 3. 挂起创建游戏进程
             AppendLog($"🎯 创建进程: {Path.GetFileName(gamePath)}");
             var si = new STARTUPINFO(); si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
             var pi = new PROCESS_INFORMATION();
@@ -147,10 +194,10 @@ public partial class MainWindow : Window
             _gameProcessHandle = pi.hProcess; _gameThreadHandle = pi.hThread; _gamePid = pi.dwProcessId; _gameRunning = true;
             AppendLog($"✅ PID={_gamePid} (挂起)");
 
-            // 3. 注入
+            // 4. 注入
             await Task.Run(() => InjectDll(gameDir));
 
-            // 4. 恢复
+            // 5. 恢复
             Win32.ResumeThread(_gameThreadHandle);
             AppendLog("▶ 进程已恢复");
             AppendLog("✅ 启动完成！");
@@ -158,10 +205,29 @@ public partial class MainWindow : Window
             UpdateStatus($"✅ 运行中 PID={_gamePid}");
             BtnShutdown.IsEnabled = true;
 
-            // 5. 监控退出
+            // 6. 监控退出
             _ = Task.Run(() => { try { Process.GetProcessById(_gamePid).WaitForExit(); } catch { } finally { Dispatcher.Invoke(OnGameExit); } });
         }
         catch (Exception ex) { AppendLog($"❌ {ex.Message}"); BtnLaunch.IsEnabled = true; BtnSearch.IsEnabled = true; }
+    }
+
+    /// <summary>
+    /// 读取 ReShade.ini 的热键配置（用于冲突检测）
+    /// </summary>
+    private Dictionary<string, int> ReadReshadeHotkeys(string gameDir)
+    {
+        var keys = new Dictionary<string, int>();
+        string iniPath = Path.Combine(gameDir, "ReShade.ini");
+        if (!File.Exists(iniPath)) return keys;
+
+        string[] keyNames = { "KeyOverlay", "KeyEffects", "KeyReload" };
+        foreach (var name in keyNames)
+        {
+            string val = ReadIniValue("INPUT", name, iniPath);
+            if (!string.IsNullOrEmpty(val) && int.TryParse(val, out int vk))
+                keys[name] = vk;
+        }
+        return keys;
     }
 
     private void InjectDll(string gameDir)
@@ -209,6 +275,9 @@ public partial class MainWindow : Window
     {
         BtnShutdown.IsEnabled = false;
         if (_engineManager != null) await _engineManager.ShutdownAllAsync();
+        // 还原 ReShade + 3DMigoto 备份
+        if (_reshadeEngine != null) await _reshadeEngine.RestoreBackupAsync();
+        if (_migotoEngine != null) await _migotoEngine.RestoreBackupAsync();
         try { Process.GetProcessById(_gamePid).Kill(); } catch { }
         if (_gameProcessHandle != IntPtr.Zero) { Win32.CloseHandle(_gameProcessHandle); if (_gameThreadHandle != IntPtr.Zero) Win32.CloseHandle(_gameThreadHandle); }
         _gameRunning = false; AppendLog("⏹ 已停止");
@@ -217,7 +286,19 @@ public partial class MainWindow : Window
 
     private void OnGameExit()
     {
-        AppendLog("🛑 游戏已退出"); BtnLaunch.IsEnabled = true; BtnSearch.IsEnabled = true;
+        AppendLog("🛑 游戏已退出");
+        // 还原 ReShade + 3DMigoto 备份
+        if (_reshadeEngine != null)
+        {
+            _ = _reshadeEngine.RestoreBackupAsync();
+            AppendLog("📦 ReShade DLL 备份已还原");
+        }
+        if (_migotoEngine != null)
+        {
+            _ = _migotoEngine.RestoreBackupAsync();
+            AppendLog("📦 3DMigoto DLL 备份已还原");
+        }
+        BtnLaunch.IsEnabled = true; BtnSearch.IsEnabled = true;
         BtnShutdown.IsEnabled = false; _gameRunning = false; UpdateStatus("就绪"); UpdateDllStatus("待检测", Brushes.Gray); UpdatePebStatus("—", Brushes.Gray);
     }
 
@@ -262,4 +343,17 @@ public partial class MainWindow : Window
     struct STARTUPINFO { public uint cb; public string lpReserved, lpDesktop, lpTitle; public uint dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags; public ushort wShowWindow, cbReserved2; public IntPtr lpReserved2, hStdInput, hStdOutput, hStdError; }
     [StructLayout(LayoutKind.Sequential)]
     struct PROCESS_INFORMATION { public IntPtr hProcess, hThread; public int dwProcessId, dwThreadId; }
+
+    // ── INI 读取 ──
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetPrivateProfileStringW(
+        string lpAppName, string lpKeyName, string lpDefault,
+        [Out] char[] lpReturnedString, uint nSize, string lpFileName);
+
+    private static string ReadIniValue(string section, string key, string filePath)
+    {
+        char[] buf = new char[4096];
+        uint len = GetPrivateProfileStringW(section, key, "", buf, (uint)buf.Length, filePath);
+        return len > 0 ? new string(buf, 0, (int)len) : "";
+    }
 }
