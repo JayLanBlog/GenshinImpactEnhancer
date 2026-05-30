@@ -83,6 +83,26 @@
 
 ---
 
+## 🖼️ 界面预览
+
+### 启动器面板
+
+<p align="center">
+  <img src="docs/launcher_panel.png" alt="GIEnhancer Launcher Panel" width="90%">
+</p>
+
+启动器提供一站式管理：自动搜索游戏路径、硬件信息检测、智能预设推荐、一键启动注入。
+
+### 游戏内 Hook 面板
+
+<p align="center">
+  <img src="docs/ingame_reshade_panel.png" alt="In-Game ReShade Hook Panel" width="90%">
+</p>
+
+游戏内按 **Home** 键打开 ReShade 画面调节面板，支持 86+ 种实时后处理特效。
+
+---
+
 ## 🎯 核心功能
 
 ### 1. ReShade 画面增强
@@ -114,12 +134,14 @@
 
 ### 3. 3DMigoto MOD 加载
 
-支持加载 3DMigoto 格式的游戏模组：
+通过 `CREATE_SUSPENDED` + `LoadLibrary` 注入 `rtlbase.dll` 到游戏进程：
 
 | 特性 | 说明 |
 |------|------|
 | 📁 MOD 目录 | 自动扫描 `{游戏目录}\Mods` 下的模组 |
-| 🔄 热加载 | 支持运行时加载/卸载 MOD |
+| 🔌 注入方式 | LoadLibrary 远程注入，游戏目录零文件修改 |
+| 🛡️ 反作弊兼容 | 不修改游戏文件/ntdll/D3D代理链，绕过反作弊文件检测 |
+| ⚙️ 配置 | 支持 `d3dx.ini` 配置，Hunting 模式、热键映射 |
 
 ### 4. 智能预设推荐
 
@@ -208,11 +230,15 @@ GenshinImpactEnhancer/
 
 点击 **"启动游戏"** 按钮，程序会：
 
-1. 🚀 以挂起模式启动游戏进程
-2. 💉 注入 `ReShade64.dll` 和 `GIEnhancer.Native.Injector.dll`
-3. ▶️ 恢复游戏主线程
-4. ✅ 等待 ReShade 初始化完成
-5. ⌨️ 自动发送 Home 键打开 ReShade 面板
+1. 🧹 清理旧代理文件（`d3d11.dll`/`dxgi.dll`）+ 杀 Stella Mod 进程
+2. 🚀 以挂起模式 (`CREATE_SUSPENDED`) 启动游戏
+3. 💉 按序注入三个 DLL：
+   - **rtlbase.dll** (3DMigoto) → 最先注入
+   - **GIEnhancer.Native.Injector.dll** → PEB 摘除自身
+   - **ReShade64.dll** → 最后注入
+4. 🔍 枚举进程模块列表，验证三模块均已加载
+5. ▶️ 恢复游戏主线程
+6. 🛡️ GIEnhancer 自动隐藏 PEB 踪迹，对抗反作弊扫描
 
 #### 5. 游戏中操作
 
