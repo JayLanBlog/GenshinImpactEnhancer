@@ -96,7 +96,7 @@
 ### 游戏内 Hook 面板
 
 <p align="center">
-  <img src="docs/ingame_reshade_panel.png" alt="In-Game ReShade Hook Panel" width="90%">
+  <img src="docs/ingame_hook_panel.gif" alt="In-Game ReShade Hook Panel" width="90%">
 </p>
 
 游戏内按 **Home** 键打开 ReShade 画面调节面板，支持 86+ 种实时后处理特效。

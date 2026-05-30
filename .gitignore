@@ -469,3 +469,6 @@ $tmp/
 conversation_history.md
 dist/runtimes/
 dist/tools/
+
+# Allow gif for docs
+!docs/*.gif
