@@ -12,9 +12,6 @@ static void Log(const wchar_t* msg)
     if (f) { fwprintf_s(f, L"%s\n", msg); fclose(f); }
 }
 
-// Global flag to prevent multiple DllMain initializations.
-// Unity may load/unload the DLL multiple times via LoadLibrary/FreeLibrary.
-// Only the FIRST DLL_PROCESS_ATTACH should perform initialization.
 static volatile LONG g_initialized = 0;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
@@ -24,37 +21,30 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
     {
         DisableThreadLibraryCalls(hModule);
 
-        // Prevent re-initialization if already loaded
         if (InterlockedCompareExchange(&g_initialized, 1, 0) != 0)
-        {
-            Log(L"DllMain: SKIP - already initialized (Unity reload)");
             return TRUE;
-        }
 
         Log(L"DllMain: FIRST initialization");
 
-        // Load ReShade config first
         wchar_t gameDir[MAX_PATH];
         GetCurrentDirectoryW(MAX_PATH, gameDir);
-        bool reshadeIni = GIEnhancer::ReShadeConfig::Load(gameDir);
-        Log(reshadeIni ? L"DllMain: ReShade.ini loaded" : L"DllMain: ReShade.ini not found");
 
-        // Load 3DMigoto config
-        bool migotoIni = GIEnhancer::MigotoConfig::Load(gameDir);
-        Log(migotoIni ? L"DllMain: d3dx.ini loaded" : L"DllMain: d3dx.ini not found");
+        // Load configs
+        GIEnhancer::ReShadeConfig::Load(gameDir);
+        GIEnhancer::MigotoConfig::Load(gameDir);
 
         // Detect rtlbase
         bool rtlLoaded = GIEnhancer::ReShadeConfig::DetectRtlbase();
         Log(rtlLoaded ? L"DllMain: rtlbase.dll detected" : L"DllMain: rtlbase.dll NOT in process");
 
+        // PEB-unlink GIEnhancer (ALWAYS)
+        GIEnhancer::AntiCheat::UnlinkModuleFromPEB(hModule);
+        Log(L"DllMain: PEB module unlinked (GIEnhancer hidden)");
+
+        // rtlbase (3DMigoto): do NOT PEB-unlink (corrupts D3D hook chain if used as proxy)
+        // rtlbase loaded via LoadLibrary = module present, no D3D proxy (no hunting overlay)
         if (rtlLoaded) {
-            // SKIP PEB unlinking when rtlbase is present.
-            // Unlinking can corrupt LDR list that rtlbase's D3D11 hooks depend on.
-            // ReShade's own anti-detection (d3dx.ini) handles this layer.
-            Log(L"DllMain: rtlbase present - skipping PEB unlinking (safety)");
-        } else {
-            GIEnhancer::AntiCheat::UnlinkModuleFromPEB(hModule);
-            Log(L"DllMain: PEB module unlinked");
+            Log(L"DllMain: rtlbase present - LoadLibrary mode (no D3D proxy/hunting overlay)");
         }
 
         GIEnhancer::Overlay::CreateAndShow(hModule);
@@ -63,9 +53,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
     }
     case DLL_PROCESS_DETACH:
     {
-        // Only shutdown if we were the one who initialized
-        if (g_initialized)
-        {
+        if (g_initialized) {
             GIEnhancer::Overlay::Shutdown();
             Log(L"DllMain: shutdown complete");
         }

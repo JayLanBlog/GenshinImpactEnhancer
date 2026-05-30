@@ -455,3 +455,17 @@ $RECYCLE.BIN/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Auto-generated screenshots
+
+*.png
+
+# Temp directories
+
+$tmp/
+
+# Conversation history
+
+conversation_history.md
+dist/runtimes/
+dist/tools/

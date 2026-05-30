@@ -99,6 +99,18 @@
 
         <!-- 底部按钮 -->
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
+            <Button x:Name="BtnReshadePanel" Content="🎨 ReShade" 
+                    Width="110" Height="45" FontSize="13" FontWeight="Bold"
+                    Background="#0f3460" Foreground="#4fc3f7" BorderThickness="1" BorderBrush="#4fc3f7"
+                    Cursor="Hand" Click="BtnReshadePanel_Click" Margin="0,0,6,0">
+                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+            </Button>
+            <Button x:Name="BtnMigotoPanel" Content="🔧 3DMigoto" 
+                    Width="110" Height="45" FontSize="13" FontWeight="Bold"
+                    Background="#0f3460" Foreground="#66bb6a" BorderThickness="1" BorderBrush="#66bb6a"
+                    Cursor="Hand" Click="BtnMigotoPanel_Click" Margin="0,0,6,0">
+                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+            </Button>
             <Button x:Name="BtnLaunch" Content="▶ 一键启动增强模式" 
                     Width="230" Height="45" FontSize="15" FontWeight="Bold"
                     Background="#e94560" Foreground="White" BorderThickness="0"

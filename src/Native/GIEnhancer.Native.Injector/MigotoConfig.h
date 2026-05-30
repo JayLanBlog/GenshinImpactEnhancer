@@ -13,6 +13,10 @@ struct MigotoData {
     bool d3dxIniPresent;   // d3dx.ini exists in game dir
     std::wstring gameDir;
 
+    // Anti-detection config status
+    bool loadLibraryRedirect;  // should be 0 (disabled)
+    bool checkForegroundWindow; // should be 0 (disabled)
+
     // Key hotkey bindings (key_name -> virtual key code)
     std::map<std::wstring, int> hotkeys;
 };

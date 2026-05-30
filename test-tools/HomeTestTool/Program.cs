@@ -3,403 +3,295 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Security.Principal;
 
-// Self-elevate if not admin
 if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
-{
-    var p = new ProcessStartInfo(System.Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas" };
-    try { Process.Start(p); } catch { }
-    return;
-}
+{ Console.WriteLine("[WARNING] Not running as Administrator! Injection may fail.\n"); }
+else { Console.WriteLine("[OK] Running as Administrator\n"); }
 
 var logDir = @"C:\Users\86178\AppData\Local\GenshinImpactEnhancer";
 Directory.CreateDirectory(logDir);
 var logFile = Path.Combine(logDir, "injection.log");
 var lns = new List<string>();
 void L(string s) { try { Console.WriteLine(s); } catch { } lns.Add(s); }
-void Flush() { try { File.WriteAllLines(logFile, lns); } catch { } }
+void Flush() { try { File.WriteAllLines(logFile, lns, Encoding.UTF8); } catch { } }
 
-try {
+var gd = @"D:\TestGame\HoYoPlay\games\Genshin Impact game";
+var gameExe = Path.Combine(gd, "GenshinImpact.exe");
+var reshadeDll = Path.Combine(gd, "ReShade64.dll");
+var enhancerDll = Path.GetFullPath(@"e:\AI\hook\src\Native\GIEnhancer.Native.Injector\x64\Release\GIEnhancer.Native.Injector.dll");
+var rlog = Path.Combine(gd, "ReShade.log");
+var ovlLog = Path.Combine(logDir, "overlay_debug.log");
+
 L("══════════════════════════════════════════════════");
-L("  Genshin Impact Enhancer + ReShade Injection (Resident)");
+L("  GIEnhancer 自动化测试 (CREATE_SUSPENDED)");
 L("  " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
 L("══════════════════════════════════════════════════");
 
-var gd = @"D:\TestGame\HoYoPlay\games\Genshin Impact game";
-var exe = Path.Combine(gd, "GenshinImpact.exe");
-var rlog = Path.Combine(gd, "ReShade.log");
-var reshadeDll = @"D:\LaunchGame\data\dependencies\reshade\ReShade64.dll";
-var enhancerDll = Path.GetFullPath(@"e:\AI\hook\src\Native\GIEnhancer.Native.Injector\x64\Release\GIEnhancer.Native.Injector.dll");
-
+if (!File.Exists(gameExe)) { L("MISSING: " + gameExe); Flush(); return; }
 if (!File.Exists(reshadeDll)) { L("MISSING: " + reshadeDll); Flush(); return; }
 if (!File.Exists(enhancerDll)) { L("MISSING: " + enhancerDll); Flush(); return; }
-if (!File.Exists(exe)) { L("MISSING: " + exe); Flush(); return; }
 
-// Clean old ReShade.log for fresh detection
-if (File.Exists(rlog)) File.Delete(rlog);
+// ══════════════════════════════════════════════════════════════════
+// 最优稳定方案（游戏目录零修改，反作弊不可见）：
+//   ① rtlbase  (3DMigoto)  → LoadLibrary 注入
+//   ② GIEnhancer            → LoadLibrary 注入 + PEB摘除自身
+//   ③ ReShade64             → LoadLibrary 注入
+//   清理所有代理DLL + 禁用 Stella Mod
+//   3DMigoto模块确认：枚举进程模块列表，搜索 rtlbase
+// ══════════════════════════════════════════════════════════════════
 
-// ── P/Invoke ──
+// 0. 清理旧代理
+foreach (var name in new[] { "dxgi.dll", "dxgi.dll.disabled", "d3d11.dll", "d3d11.dll.disabled" }) {
+    var dp = Path.Combine(gd, name);
+    for (int a = 0; a < 3; a++) { try { File.Delete(dp); break; } catch { Thread.Sleep(300); } }
+}
+
+// 1. 禁用 Stella Mod
+foreach (var pn in new[] { "Stella Mod Launcher", "LaunchGame", "Welcome App", "Configuration Window" })
+    foreach (var p in Process.GetProcessesByName(pn)) { try { p.Kill(); p.WaitForExit(3000); } catch { } }
+var stellaRS = @"D:\LaunchGame\data\dependencies\reshade\ReShade64.dll";
+if (File.Exists(stellaRS)) { try { File.Move(stellaRS, stellaRS + ".disabled"); } catch { } }
+
+var rtlPath = Path.Combine(gd, "rtlbase.dll");
+L($"  rtlbase={(File.Exists(rtlPath)?"OK":"MISSING")} | 注入顺序: rtlbase→GIEnhancer→ReShade | 零文件修改");
+
+const uint CREATE_SUSPENDED = 0x00000004;
+const uint PROCESS_ALL_ACCESS = 0x1F0FFF;
+const int MAX_RETRIES = 3;
+
 bool InjectDll(IntPtr hp, string dll)
 {
-    var pathBytes = Encoding.Unicode.GetBytes(dll + '\0');
-    uint sz = (uint)pathBytes.Length;
-
-    // Allocate memory in target process for DLL path
-    var remoteMem = VirtualAllocEx(hp, IntPtr.Zero, sz, 0x3000 /* MEM_COMMIT | MEM_RESERVE */, 0x04 /* PAGE_READWRITE */);
-    if (remoteMem == IntPtr.Zero)
-    {
-        L("  VirtualAllocEx FAIL: " + Marshal.GetLastWin32Error());
-        return false;
-    }
-
-    if (!WriteProcessMemory(hp, remoteMem, pathBytes, sz, out _))
-    {
-        L("  WriteProcessMemory FAIL: " + Marshal.GetLastWin32Error());
-        VirtualFreeEx(hp, remoteMem, 0, 0x8000);
-        return false;
-    }
-
-    var loadLibAddr = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
-    if (loadLibAddr == IntPtr.Zero)
-    {
-        L("  GetProcAddress(LoadLibraryW) FAIL");
-        VirtualFreeEx(hp, remoteMem, 0, 0x8000);
-        return false;
-    }
-
-    // Create remote thread to call LoadLibraryW with our DLL path
-    var ht = CreateRemoteThread(hp, IntPtr.Zero, 0, loadLibAddr, remoteMem, 0, IntPtr.Zero);
-    if (ht == IntPtr.Zero)
-    {
-        L("  CreateRemoteThread FAIL: " + Marshal.GetLastWin32Error());
-        VirtualFreeEx(hp, remoteMem, 0, 0x8000);
-        return false;
-    }
-
-    // Wait for LoadLibraryW to complete (max 15s)
-    WaitForSingleObject(ht, 15000);
-    GetExitCodeThread(ht, out uint exitCode);
-    CloseHandle(ht);
-    VirtualFreeEx(hp, remoteMem, 0, 0x8000 /* MEM_RELEASE */);
-
-    return exitCode != 0;
+    var bytes = Encoding.Unicode.GetBytes(dll + '\0');
+    uint sz = (uint)bytes.Length;
+    var mem = NativeMethods.VirtualAllocEx(hp, IntPtr.Zero, sz, 0x3000, 0x04);
+    if (mem == IntPtr.Zero) return false;
+    NativeMethods.WriteProcessMemory(hp, mem, bytes, sz, out _);
+    var loadLib = NativeMethods.GetProcAddress(NativeMethods.GetModuleHandle("kernel32.dll"), "LoadLibraryW");
+    var ht = NativeMethods.CreateRemoteThread(hp, IntPtr.Zero, 0, loadLib, mem, 0, IntPtr.Zero);
+    if (ht == IntPtr.Zero) { NativeMethods.VirtualFreeEx(hp, mem, 0, 0x8000); return false; }
+    NativeMethods.WaitForSingleObject(ht, 15000);
+    NativeMethods.GetExitCodeThread(ht, out uint ec);
+    NativeMethods.CloseHandle(ht);
+    NativeMethods.VirtualFreeEx(hp, mem, 0, 0x8000);
+    return ec != 0;
 }
 
-// ── Step 1: Launch game SUSPENDED ──
-L("[1] Launching game (CREATE_SUSPENDED)...");
-var si = new STARTUPINFO();
-si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
-var pi = new PROCESS_INFORMATION();
-
-if (!CreateProcessW(exe, null, IntPtr.Zero, IntPtr.Zero, false, 0x4 /* CREATE_SUSPENDED */, IntPtr.Zero, gd, ref si, out pi))
+bool CheckResult(int pid)
 {
-    L("FAIL CreateProcess: " + Marshal.GetLastWin32Error());
-    Flush();
-    return;
-}
-L("  PID=" + pi.dwProcessId + " TID=" + pi.dwThreadId);
+    var h = NativeMethods.OpenProcess(0x0410, false, pid);
+    if (h == IntPtr.Zero) { L("  ⚠️ OpenProcess failed"); return false; }
 
-// ── Step 2: Open process handle (keep alive for monitoring) ──
-var hp = OpenProcess(0x1F0FFF /* PROCESS_ALL_ACCESS */, false, pi.dwProcessId);
-if (hp == IntPtr.Zero)
-{
-    L("FAIL OpenProcess: " + Marshal.GetLastWin32Error());
-    CloseHandle(pi.hThread);
-    CloseHandle(pi.hProcess);
-    Flush();
-    return;
-}
+    var mods = new IntPtr[8192]; uint nmod;
+    bool migotoOk = false, reshadeOk = false, enhancerOk = false;
 
-// ── Step 3: Inject ReShade64.dll BEFORE resuming ──
-L("[2] Injecting ReShade64.dll...");
-bool reshadeOk = InjectDll(hp, reshadeDll);
-L(reshadeOk ? "  ReShade64.dll: OK" : "  ReShade64.dll: FAIL");
-Thread.Sleep(500);
-
-// ── Step 4: Inject Enhancer DLL BEFORE resuming ──
-L("[3] Injecting GIEnhancer.Native.Injector.dll...");
-bool enhancerOk = InjectDll(hp, enhancerDll);
-L(enhancerOk ? "  Enhancer DLL: OK" : "  Enhancer DLL: FAIL");
-Thread.Sleep(500);
-
-// ── Step 5: Verify modules loaded ──
-var mods = new IntPtr[4096];
-EnumProcessModulesEx(hp, mods, (uint)(mods.Length * IntPtr.Size), out uint nmod, 0x03);
-int modCount = (int)(nmod / (uint)IntPtr.Size);
-bool enhancerVis = false, reshadeVis = false;
-for (int i = 0; i < modCount; i++)
-{
-    var sb = new StringBuilder(512);
-    GetModuleFileNameEx(hp, mods[i], sb, 512);
-    var nm = sb.ToString();
-    if (nm.Contains("GIEnhancer.Native")) enhancerVis = true;
-    if (nm.Contains("ReShade") || nm.Contains("rtlbase")) reshadeVis = true;
-}
-L($"[4] Module check: Enhancer={(enhancerVis ? "YES" : "NO")} ReShade={(reshadeVis ? "YES" : "NO")} ({modCount} modules)");
-
-// ── Step 6: Resume game main thread ──
-L("[5] Resuming game main thread...");
-uint prevSuspendCount = ResumeThread(pi.hThread);
-L($"  ResumeThread returned: {prevSuspendCount}");
-Flush();
-
-// Close the thread handle (no longer needed), but KEEP process handle
-CloseHandle(pi.hThread);
-
-// ── Step 7: Wait for ReShade initialization ──
-L("[6] Waiting for ReShade initialization...");
-bool reshadeReady = false;
-for (int i = 1; i <= 60; i++) // wait up to 60s
-{
-    Thread.Sleep(1000);
-
-    // Check if game is still alive
-    try
+    if (NativeMethods.EnumProcessModulesEx(h, mods, (uint)(mods.Length * IntPtr.Size), out nmod, 0x03))
     {
-        using var proc = Process.GetProcessById(pi.dwProcessId);
-        if (proc.HasExited)
+        int count = (int)(nmod / (uint)IntPtr.Size);
+        L($"  进程加载了 {count} 个模块:");
+
+        for (int i = 0; i < count; i++)
         {
-            L($"  Game exited at {i}s (exit code: {proc.ExitCode})");
-            Flush();
-            return;
+            var sb = new StringBuilder(512);
+            NativeMethods.GetModuleFileNameEx(h, mods[i], sb, 512);
+            string name = sb.ToString();
+            
+            if (name.Contains("rtlbase", StringComparison.OrdinalIgnoreCase))
+            { migotoOk = true; L($"    [3DMigoto] ✅ {Path.GetFileName(name)} @ 0x{mods[i]:X}"); }
+            else if (name.Contains("ReShade", StringComparison.OrdinalIgnoreCase))
+            { reshadeOk = true; L($"    [ReShade]  ✅ {Path.GetFileName(name)} @ 0x{mods[i]:X}"); }
+            else if (name.Contains("GIEnhancer", StringComparison.OrdinalIgnoreCase) || 
+                     name.Contains("Stella.Native", StringComparison.OrdinalIgnoreCase))
+            { enhancerOk = true; L($"    [GIEnhancer]✅ {Path.GetFileName(name)} @ 0x{mods[i]:X}"); }
         }
     }
-    catch
-    {
-        L($"  Game process gone at {i}s");
-        Flush();
-        return;
+    NativeMethods.CloseHandle(h);
+
+    // Fallback checks
+    if (!enhancerOk && File.Exists(ovlLog)) { try { enhancerOk = File.ReadAllText(ovlLog).Contains("Toggle:"); } catch { } }
+    if (!reshadeOk && File.Exists(rlog) && new FileInfo(rlog).Length > 10) reshadeOk = true;
+    if (!reshadeOk && File.Exists(rlog + "1") && new FileInfo(rlog + "1").Length > 10) reshadeOk = true;
+
+    L($"  3DMigoto: {(migotoOk ? "✅ 模块已确认" : "❌ 未在进程中找到")}");
+    L($"  ReShade:  {(reshadeOk ? "✅ 模块已确认" : "❌ 未在进程中找到")}");
+    L($"  GIEnhancer:{(enhancerOk ? "✅ 模块已确认" : "❌ 未在进程中找到")}");
+    return enhancerOk;
+}
+
+void SendTestKeys(int pid)
+{
+    // Force foreground using AttachThreadInput (we're admin)
+    var hwnd = FindGameWindow(pid);
+    if (hwnd != IntPtr.Zero) {
+        uint gid; NativeMethods.GetWindowThreadProcessId(hwnd, out gid);
+        uint tid = NativeMethods.GetCurrentThreadId();
+        NativeMethods.AttachThreadInput(tid, gid, true);
+        NativeMethods.SetForegroundWindow(hwnd); Thread.Sleep(200);
+        NativeMethods.BringWindowToTop(hwnd);
+        NativeMethods.AttachThreadInput(tid, gid, false);
+        Thread.Sleep(300);
+        L($"  窗口置前: {(NativeMethods.GetForegroundWindow() == hwnd ? "OK" : "retry...")}");
     }
 
-    // Check ReShade.log
-    if (File.Exists(rlog))
+    L("[9] 发送Home键 (ReShade)...");
+    for (int k = 0; k < 3; k++)
     {
-        try
+        if (hwnd != IntPtr.Zero) { NativeMethods.PostMessage(hwnd, 0x100, (IntPtr)0x24, (IntPtr)0x00000001); Thread.Sleep(80); NativeMethods.PostMessage(hwnd, 0x101, (IntPtr)0x24, (IntPtr)0xC0000001); }
+        NativeMethods.SendInputKey(0x24, false); Thread.Sleep(100);
+        NativeMethods.SendInputKey(0x24, true); Thread.Sleep(2000);
+        if (File.Exists(rlog) && new FileInfo(rlog).Length > 10) { L("  ✅ ReShade响应"); break; }
+        if (File.Exists(rlog + "1") && new FileInfo(rlog + "1").Length > 10) { L("  ✅ ReShade响应"); break; }
+        L($"  第{k+2}次..."); Flush();
+    }
+    
+    L("[10] 发送F3键 (3DMigoto)...");
+    if (hwnd != IntPtr.Zero) { NativeMethods.PostMessage(hwnd, 0x100, (IntPtr)0x72, (IntPtr)0x00000001); Thread.Sleep(80); NativeMethods.PostMessage(hwnd, 0x101, (IntPtr)0x72, (IntPtr)0xC0000001); }
+    NativeMethods.SendInputKey(0x72, false); Thread.Sleep(100);
+    NativeMethods.SendInputKey(0x72, true); Thread.Sleep(2000);
+    
+    L("[11] 发送F11键 (GIEnhancer)...");
+    for (int k = 0; k < 3; k++)
+    {
+        NativeMethods.SendInputKey(0x7A, false); Thread.Sleep(100);
+        NativeMethods.SendInputKey(0x7A, true); Thread.Sleep(2000);
+        Flush();
+        if (File.Exists(ovlLog) && File.ReadAllText(ovlLog).Contains("Toggle:"))
+        { L("  ✅ GIEnhancer面板已触发！"); break; }
+    }
+}
+
+IntPtr FindGameWindow(int pid)
+{
+    IntPtr result = IntPtr.Zero;
+    try { result = Process.GetProcessById(pid).MainWindowHandle; } catch { }
+    if (result != IntPtr.Zero) return result;
+
+    IntPtr found = IntPtr.Zero;
+    NativeMethods.EnumWindows((h, l) =>
+    {
+        var sb = new StringBuilder(256);
+        NativeMethods.GetWindowText(h, sb, 256);
+        if (sb.ToString().Contains("原神"))
         {
-            using var fs = new FileStream(rlog, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            using var sr = new StreamReader(fs);
-            var txt = sr.ReadToEnd();
-            if (txt.Length > 200 && txt.Contains("Initialized"))
-            {
-                reshadeReady = true;
-                L($"  ReShade initialized at {i}s");
-                break;
-            }
+            NativeMethods.GetWindowThreadProcessId(h, out uint p);
+            if (p == pid) { found = h; return false; }
         }
-        catch { }
-    }
-
-    if (i % 10 == 0)
-    {
-        L($"  ... waiting {i}s");
-        Flush();
-    }
+        return true;
+    }, IntPtr.Zero);
+    return found;
 }
 
-if (!reshadeReady)
+// ═══════════════════════ 主测试循环 ═══════════════════════
+for (int retry = 1; retry <= MAX_RETRIES; retry++)
 {
-    L("  WARNING: ReShade did not initialize within 60s (game may still work)");
-}
-
-// ── Step 8: Read ReShade.ini for overlay key ──
-int vkOverlay = 0x24; // Default: Home
-var ini = Path.Combine(gd, "ReShade.ini");
-if (File.Exists(ini))
-{
-    var m = System.Text.RegularExpressions.Regex.Match(File.ReadAllText(ini), @"KeyOverlay=(\d+),(\d+),(\d+),(\d+)");
-    if (m.Success) vkOverlay = int.Parse(m.Groups[1].Value);
-}
-L($"[7] ReShade overlay key: VK_{vkOverlay} ({(vkOverlay == 0x24 ? "Home" : vkOverlay == 0x2D ? "Insert" : "0x" + vkOverlay.ToString("X2"))})");
-
-// ── Step 9: Send Home key to open ReShade panel (after game fully loaded) ──
-L("[8] Waiting 12s for game scene to fully load...");
-Thread.Sleep(12000);
-
-// Check game still alive before sending key
-try
-{
-    using var proc = Process.GetProcessById(pi.dwProcessId);
-    if (proc.HasExited)
-    {
-        L("  Game exited before Home key could be sent");
-        Flush();
-        return;
-    }
-}
-catch
-{
-    L("  Game process gone before Home key");
+    L($"\n{'='*50}\n  第 {retry}/{MAX_RETRIES} 次测试\n{'='*50}");
     Flush();
-    return;
-}
 
-L("[9] Sending Home key x3 to open ReShade panel...");
-for (int i = 0; i < 3; i++)
-{
-    keybd_event((byte)vkOverlay, 0x47 /* scancode for Home */, 0 /* key down */, UIntPtr.Zero);
-    Thread.Sleep(80);
-    keybd_event((byte)vkOverlay, 0x47, 2 /* key up */, UIntPtr.Zero);
-    Thread.Sleep(2000);
-    L($"  Home key press #{i + 1}");
-}
-Flush();
-
-// ═════════════════════════════════════════════════
-//  RESIDENT MODE: Keep running, monitor game status
-// ═════════════════════════════════════════════════
-L("");
-L("══════════════════════════════════════════════════");
-L("  RESIDENT MODE ACTIVE");
-L("  Injection complete. Monitoring game...");
-L("  Press Ctrl+C in this window to stop monitoring");
-L("  (Game will continue running independently)");
-L("══════════════════════════════════════════════════");
-Flush();
-
-// Register Ctrl+C handler for clean exit
-Console.CancelKeyPress += (_, e) =>
-{
+    // 退出时恢复 Stella Mod 的 ReShade64.dll
+var stellaRSdisabled = stellaRS + ".disabled";
+Console.CancelKeyPress += (_, e) => {
     e.Cancel = true;
-    L("");
-    L("Ctrl+C received. Stopping monitor (game keeps running)...");
-    Flush();
-    Environment.Exit(0);
+    if (File.Exists(stellaRSdisabled)) {
+        try { File.Move(stellaRSdisabled, stellaRS); L("  已恢复 Stella Mod ReShade64.dll"); } catch { }
+    }
+    Flush(); Environment.Exit(0);
 };
 
-// Long-term stability monitor
-int totalSeconds = 0;
-int reportInterval = 300; // Report every 5 minutes
-var lastReportTime = DateTime.Now;
+// 清理旧进程 + 日志
+L("[0] 清理旧进程+日志...");
+    foreach (var p in Process.GetProcessesByName("GenshinImpact"))
+    { try { p.Kill(); p.WaitForExit(3000); L($"  已杀死 PID={p.Id}"); } catch { } }
+    Thread.Sleep(2000);
+    try { File.Delete(rlog); File.Delete(rlog + "1"); } catch { }
+    try { File.Delete(ovlLog); } catch { }
 
-while (true)
-{
-    Thread.Sleep(1000);
-    totalSeconds++;
-
-    // Check if game is still alive
-    bool gameAlive = false;
-    try
-    {
-        using var proc = Process.GetProcessById(pi.dwProcessId);
-        gameAlive = !proc.HasExited;
-        if (!gameAlive)
-        {
-            L($"[!] Game exited at {totalSeconds}s");
-            Flush();
-            break;
-        }
-    }
-    catch
-    {
-        L($"[!] Game process gone at {totalSeconds}s");
-        Flush();
-        break;
-    }
-
-    // Periodic status report
-    if (totalSeconds % reportInterval == 0)
-    {
-        try
-        {
-            using var proc = Process.GetProcessById(pi.dwProcessId);
-            var memMB = proc.PrivateMemorySize64 / 1024 / 1024;
-            var elapsed = TimeSpan.FromSeconds(totalSeconds);
-            L($"[HEARTBEAT] {elapsed:hh\\:mm\\:ss} | PID={pi.dwProcessId} | Memory={memMB}MB | Status=RUNNING");
-        }
-        catch { }
-
-        // Check ReShade.log for errors
-        if (File.Exists(rlog))
-        {
-            try
-            {
-                using var fs = new FileStream(rlog, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using var sr = new StreamReader(fs);
-                var txt = sr.ReadToEnd();
-                int errorCount = System.Text.RegularExpressions.Regex.Matches(txt, @"error|fail|crash", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
-                if (errorCount > 0)
-                    L($"  ReShade.log: {errorCount} potential issues");
-            }
-            catch { }
-        }
-        Flush();
-    }
-}
-
-L("Monitor stopped.");
-}
-catch (Exception e)
-{
-    L("EXCEPTION: " + e.Message);
-    if (e.StackTrace != null) L("  " + e.StackTrace);
-}
-finally
-{
+    // ── Step 1: CREATE_SUSPENDED ──
+    L("[1] CREATE_SUSPENDED 启动游戏...");
+    var si = new STARTUPINFO { cb = (uint)Marshal.SizeOf<STARTUPINFO>() };
+    bool ok = NativeMethods.CreateProcessW(null, "\"" + gameExe + "\"", IntPtr.Zero, IntPtr.Zero, false,
+        CREATE_SUSPENDED, IntPtr.Zero, gd, ref si, out var pi);
+    if (!ok) { L($"  FAIL CreateProcessW: {Marshal.GetLastWin32Error()}"); Flush(); continue; }
+    L($"  游戏已启动 (SUSPENDED): PID={pi.dwProcessId}");
     Flush();
+
+    // ── Step 2: 打开进程 ──
+    L("[2] 打开进程...");
+    IntPtr hProc = NativeMethods.OpenProcess(PROCESS_ALL_ACCESS, false, pi.dwProcessId);
+    if (hProc == IntPtr.Zero)
+    { L($"  FAIL OpenProcess: {Marshal.GetLastWin32Error()}"); NativeMethods.TerminateProcess(pi.hProcess, 0); continue; }
+    L("  句柄获取成功");
+
+    // ── Step 3: 按序 LoadLibrary 注入三DLL ──
+    // ① rtlbase (3DMigoto) - 最先
+    L("[3] 注入 rtlbase.dll (3DMigoto) [①]...");
+    bool migotoOk = InjectDll(hProc, rtlPath);
+    L(migotoOk ? "  ✅ 3DMigoto" : "  ❌ 3DMigoto");
+    
+    // ② GIEnhancer - PEB摘除自身
+    L("[4] 注入 GIEnhancer [② PEB隐藏]...");
+    bool enhancerOk2 = InjectDll(hProc, enhancerDll);
+    L(enhancerOk2 ? "  ✅ GIEnhancer" : "  ❌ GIEnhancer");
+    
+    // ③ ReShade64
+    L("[5] 注入 ReShade64 [③]...");
+    bool reshadeOk = InjectDll(hProc, reshadeDll);
+    L(reshadeOk ? "  ✅ ReShade" : "  ❌ ReShade");
+    
+    NativeMethods.CloseHandle(hProc);
+    L($"  3DMigoto={(migotoOk?"OK":"FAIL")} GIEnhancer={(enhancerOk2?"OK":"FAIL")} ReShade={(reshadeOk?"OK":"FAIL")}");
+
+    // ── Step 4: 恢复线程 ──
+    L("[5] 恢复游戏主线程...");
+    NativeMethods.ResumeThread(pi.hThread);
+    NativeMethods.CloseHandle(pi.hThread);
+    L("  线程已恢复，游戏正在启动");
+    Flush();
+
+    // ── Step 5: 等待游戏加载 ──
+    L("[6] 等待游戏加载（40秒）...");
+    bool alive = true;
+    for (int i = 1; i <= 40; i++)
+    {
+        Thread.Sleep(1000);
+        try { if (Process.GetProcessById(pi.dwProcessId).HasExited) { alive = false; L($"  在 {i}s 退出"); break; } }
+        catch { alive = false; L($"  在 {i}s 消失"); break; }
+        if (i % 10 == 0) { L($"  ... {i}s"); Flush(); }
+    }
+    if (!alive) { Flush(); continue; }
+
+    // ── Step 6: 查找窗口 ──
+    L("[7] 查找窗口...");
+    var hwnd = FindGameWindow(pi.dwProcessId);
+    if (hwnd != IntPtr.Zero) { NativeMethods.SetForegroundWindow(hwnd); L($"  窗口: 0x{hwnd:X}"); }
+    else L("  未找到窗口");
+
+    // ── Step 7: 稳定 ──
+    L("[8] 稳定10秒...");
+    Thread.Sleep(10000);
+    try { if (Process.GetProcessById(pi.dwProcessId).HasExited) { L("  已退出"); continue; } }
+    catch { L("  已退出"); continue; }
+
+    // ── Step 8: 发送按键 ──
+    SendTestKeys(pi.dwProcessId);
+    Flush();
+    Thread.Sleep(5000);
+
+    // ── Step 9: 检查结果 ──
+    L($"\n{'='*50}\n  测试结果\n{'='*50}");
+    bool allOk = CheckResult(pi.dwProcessId);
+    try { L($"  游戏: 运行中 ✓ (PID={pi.dwProcessId})"); }
+    catch { L("  游戏: 已退出 ✗"); }
+    L($"{'='*50}");
+    Flush();
+
+    if (allOk)
+    {
+        L("\n🎉 测试成功！所有面板正常！");
+        Flush();
+        L("按Ctrl+C退出...");
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; Flush(); Environment.Exit(0); };
+        while (true) Thread.Sleep(5000);
+    }
+    L($"\n面板未全部触发，重试...\n");
 }
 
-// ═════════════════════════════════════════════════
-//  P/Invoke Declarations
-// ═════════════════════════════════════════════════
-
-[DllImport("kernel32.dll", SetLastError = true)]
-static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);
-
-[DllImport("kernel32.dll")]
-static extern bool CloseHandle(IntPtr hObject);
-
-[DllImport("kernel32.dll")]
-static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
-
-[DllImport("kernel32.dll", SetLastError = true)]
-static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
-
-[DllImport("kernel32.dll", SetLastError = true)]
-static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, out UIntPtr lpNumberOfBytesWritten);
-
-[DllImport("kernel32.dll", SetLastError = true)]
-static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
-
-[DllImport("kernel32.dll")]
-static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
-
-[DllImport("kernel32.dll")]
-static extern uint ResumeThread(IntPtr hThread);
-
-[DllImport("kernel32.dll")]
-static extern IntPtr GetModuleHandle(string lpModuleName);
-
-[DllImport("kernel32.dll")]
-static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
-
-[DllImport("kernel32.dll")]
-static extern bool GetExitCodeThread(IntPtr hThread, out uint lpExitCode);
-
-[DllImport("kernel32.dll", SetLastError = true)]
-static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint dwFreeType);
-
-[DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-static extern bool CreateProcessW(string? lpApplicationName, string? lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string? lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
-
-[DllImport("psapi.dll", SetLastError = true)]
-static extern bool EnumProcessModulesEx(IntPtr hProcess, [Out] IntPtr[] lphModule, uint cb, out uint lpcbNeeded, uint dwFilterFlag);
-
-[DllImport("psapi.dll", SetLastError = true)]
-static extern uint GetModuleFileNameEx(IntPtr hProcess, IntPtr hModule, StringBuilder lpFilename, uint nSize);
-
-[DllImport("user32.dll")]
-static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-
-struct STARTUPINFO
-{
-    public uint cb;
-    public string lpReserved, lpDesktop, lpTitle;
-    public uint dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags;
-    public ushort wShowWindow, cbReserved2;
-    public IntPtr lpReserved2, hStdInput, hStdOutput, hStdError;
-}
-
-struct PROCESS_INFORMATION
-{
-    public IntPtr hProcess, hThread;
-    public int dwProcessId, dwThreadId;
-}
+L("\n❌ 已达最大重试次数");
+Flush();

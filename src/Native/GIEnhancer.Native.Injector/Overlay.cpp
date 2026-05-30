@@ -119,6 +119,31 @@ LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             swprintf_s(buf, L"  Hunting: %s", mcfg.huntingEnabled ? L"ENABLED" : L"DISABLED");
             TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
 
+            // Anti-detection config status
+            SetTextColor(hdc, mcfg.loadLibraryRedirect && mcfg.checkForegroundWindow ? RGB(0, 255, 80) : RGB(255, 80, 80));
+            swprintf_s(buf, L"  Anti-Det: %s",
+                (mcfg.loadLibraryRedirect && mcfg.checkForegroundWindow) ? L"OK" : L"WARNING");
+            TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+
+            SetTextColor(hdc, RGB(200, 200, 200));
+            swprintf_s(buf, L"    load_lib_redirect=%s fg_check=%s",
+                mcfg.loadLibraryRedirect ? L"OFF" : L"ON",
+                mcfg.checkForegroundWindow ? L"OFF" : L"ON");
+            TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+
+            // Show global hotkeys
+            SetTextColor(hdc, RGB(255, 255, 255));
+            auto itToggle = mcfg.hotkeys.find(L"KeyToggleMods");
+            if (itToggle != mcfg.hotkeys.end()) {
+                swprintf_s(buf, L"  ToggleMods: %s (0x%02X)", VkName(itToggle->second), itToggle->second);
+                TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+            }
+            auto itReload = mcfg.hotkeys.find(L"KeyReloadMods");
+            if (itReload != mcfg.hotkeys.end()) {
+                swprintf_s(buf, L"  ReloadMods: %s (0x%02X)", VkName(itReload->second), itReload->second);
+                TextOutW(hdc, 15, y, buf, (int)wcslen(buf)); y += 20;
+            }
+
             // Show screenshot hotkey if configured
             auto it = mcfg.hotkeys.find(L"take_screenshot");
             if (it != mcfg.hotkeys.end()) {
@@ -250,7 +275,7 @@ void Toggle()
             WS_EX_LAYERED | WS_EX_TOPMOST,
             L"GIEnhancerOverlayClass", L"Genshin Impact Enhancer",
             WS_POPUP,
-            10, 50, 420, 400,  // Increased height for 3DMigoto section
+            10, 50, 420, 520,  // Increased height for anti-detection + global hotkeys
             nullptr, nullptr, g_hModule, nullptr);
 
         if (!g_hwndOverlay) { Log(L"Toggle: CreateWindow FAILED"); return; }

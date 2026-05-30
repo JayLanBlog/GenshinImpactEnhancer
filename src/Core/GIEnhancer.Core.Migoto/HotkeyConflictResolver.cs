@@ -45,10 +45,11 @@ public class HotkeyConflictResolver
     };
 
     /// <summary>
-    /// 3DMigoto [Hunting] 区段的热键键名 → 功能描述
+    /// 3DMigoto 热键键名 → 功能描述（覆盖 Hunting 和全局热键）
     /// </summary>
     private static readonly Dictionary<string, string> MigotoKeyFunctions = new()
     {
+        // [Hunting] 区段
         { "next_pixelshader", "下一个像素着色器" },
         { "previous_pixelshader", "上一个像素着色器" },
         { "mark_pixelshader", "标记像素着色器" },
@@ -64,6 +65,9 @@ public class HotkeyConflictResolver
         { "take_screenshot", "截图" },
         { "tune_up", "参数调大" },
         { "tune_down", "参数调小" },
+        // 全局热键区段
+        { "KeyToggleMods", "Mod 开关切换" },
+        { "KeyReloadMods", "Mod 重载" },
     };
 
     /// <summary>
@@ -186,14 +190,17 @@ public class HotkeyConflictResolver
             // 找出 3DMigoto 中使用冲突键的所有键名
             foreach (var usage in conflict.MigotoUsages)
             {
-                // usage 格式: "截图 (take_screenshot)"
+                // usage 格式: "截图 (take_screenshot)" 或 "Mod 开关切换 (KeyToggleMods)"
                 int parenIdx = usage.IndexOf('(');
                 if (parenIdx >= 0)
                 {
                     string keyName = usage[(parenIdx + 1)..].TrimEnd(')');
-                    WriteIniValue("Hunting", keyName, replaceName, iniPath);
+                    // 判断该键属于哪个区段：全局热键用自身名称作为区段，Hunting 热键统一用 Hunting
+                    string section = MigotoConfigReader.GlobalHotkeyEntries
+                        .Any(e => e.Section == keyName) ? keyName : "Hunting";
+                    WriteIniValue(section, "Key", replaceName, iniPath);
                     StellaLogger.Info("HotkeyConflict",
-                        $"Modified d3dx.ini [{keyName}] = {replaceName} (was {conflict.KeyName})");
+                        $"Modified d3dx.ini [{section}] Key = {replaceName} (was {conflict.KeyName})");
                 }
             }
         }

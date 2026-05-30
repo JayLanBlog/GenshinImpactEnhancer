@@ -5,7 +5,8 @@ namespace GIEnhancer.Core.Reshade;
 
 /// <summary>
 /// ReShade 引擎模块。
-/// 负责检测、部署 ReShade 代理 DLL，读取配置，管理预设。
+/// 负责检测 ReShade DLL 是否存在并提供注入路径。
+/// ReShade64.dll 通过 LoadLibrary 直接注入游戏进程，不需要代理 DLL。
 /// </summary>
 public class ReshadeEngine : IEngineModule
 {
@@ -15,11 +16,14 @@ public class ReshadeEngine : IEngineModule
     public string? ActivePreset { get; private set; }
 
     /// <summary>
-    /// ReShade 需要部署的文件列表。
-    /// dxgi.dll = 代理入口（游戏加载它，它再加载 ReShade64.dll）
-    /// ReShade64.dll = 核心着色器引擎（实际功能所在）
+    /// ReShade 核心引擎 DLL（直接通过 LoadLibrary 注入，不是代理 DLL）
     /// </summary>
-    public static readonly string[] RequiredDlls = { "dxgi.dll", "ReShade64.dll" };
+    public static readonly string[] RequiredDlls = { "ReShade64.dll" };
+
+    /// <summary>
+    /// ReShade64.dll 的完整路径（InitializeAsync 后可用）
+    /// </summary>
+    public string? DllPath { get; private set; }
 
     /// <summary>
     /// 工具目录（包含 tools/reshade/ 子目录）
@@ -41,43 +45,47 @@ public class ReshadeEngine : IEngineModule
         GameDir = gameDirectory;
         PresetDirectory = Path.Combine(gameDirectory, "reshade-shaders");
 
-        // 1. 检测 ReShade DLL
-        string toolDir = ToolDir ?? Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
-        bool dllsFound = await Task.Run(() => DetectDlls(toolDir), ct);
-
-        if (!dllsFound)
+        // 0. 清理旧的 dinput8.dll 代理（D3D11 游戏不需要，可能会干扰）
+        var oldProxy = Path.Combine(gameDirectory, "dinput8.dll");
+        if (File.Exists(oldProxy))
         {
-            // 也检查游戏目录是否已有 ReShade
-            bool alreadyInGame = File.Exists(Path.Combine(gameDirectory, "dxgi.dll"));
-            if (alreadyInGame && File.Exists(Path.Combine(gameDirectory, "ReShade.ini")))
+            var backupDir = Path.Combine(gameDirectory, "backup_reshade");
+            if (!Directory.Exists(backupDir)) Directory.CreateDirectory(backupDir);
+            File.Copy(oldProxy, Path.Combine(backupDir, "dinput8.dll"), overwrite: true);
+            File.Delete(oldProxy);
+            StellaLogger.Info(Name, "Removed old dinput8.dll proxy (not needed for D3D11 games)");
+        }
+
+        // 1. 查找 ReShade64.dll（按优先级：工具目录 > 游戏目录 > 系统目录）
+        string toolDir = ToolDir ?? Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
+
+        // 优先使用 D:\LaunchGame\data\dependencies\reshare\ReShade64.dll (HomeTestTool 验证的路径)
+        var candidatePaths = new[]
+        {
+            @"D:\LaunchGame\data\dependencies\reshade\ReShade64.dll",
+            Path.Combine(toolDir, "reshade", "ReShade64.dll"),
+            Path.Combine(gameDirectory, "ReShade64.dll"),
+        };
+
+        foreach (var p in candidatePaths)
+        {
+            if (File.Exists(p))
             {
-                StellaLogger.Info(Name, "ReShade already present in game directory");
-                IsDeployed = false; // 不是我们部署的，不需要还原
+                DllPath = p;
                 IsInitialized = true;
+                IsDeployed = true;
+                StellaLogger.Info(Name, $"ReShade64.dll found: {p}");
                 return true;
             }
-
-            StellaLogger.Info(Name, "ReShade DLL not found — skipping");
-            IsInitialized = false;
-            return false;
         }
 
-        // 2. 部署到游戏目录
-        IsDeployed = await Task.Run(() => DeployToGameDir(toolDir, gameDirectory), ct);
-        if (!IsDeployed)
-        {
-            StellaLogger.Warn(Name, "Failed to deploy ReShade DLL to game directory");
-            IsInitialized = false;
-            return false;
-        }
-
-        IsInitialized = true;
-        StellaLogger.Info(Name, $"Initialized — deployed={IsDeployed}, presetDir={PresetDirectory}");
-        return true;
+        StellaLogger.Info(Name, "ReShade64.dll not found in any known location — skipping");
+        IsInitialized = false;
+        return false;
     }
 
     /// <summary>
-    /// 检测工具目录下是否存在 ReShade 的代理 DLL
+    /// 检测工具目录下是否存在 ReShade 的所有必需 DLL
     /// </summary>
     public static bool DetectDlls(string toolDir)
     {
@@ -101,7 +109,7 @@ public class ReshadeEngine : IEngineModule
     }
 
     /// <summary>
-    /// 将 ReShade 代理 DLL 复制到游戏目录（备份已有文件）
+    /// 将 ReShade DLL 复制到游戏目录（备份已有文件）
     /// </summary>
     public static bool DeployToGameDir(string toolDir, string gameDir)
     {

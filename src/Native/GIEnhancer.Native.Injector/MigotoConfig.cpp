@@ -107,6 +107,10 @@ bool Load(const wchar_t* gameDir)
     g_migoto.huntingMode = GetIniInt(L"Hunting", L"hunting", iniPath);
     g_migoto.huntingEnabled = (g_migoto.huntingMode > 0);
 
+    // Read anti-detection config status
+    g_migoto.loadLibraryRedirect = (GetIniInt(L"System", L"load_library_redirect", iniPath) == 0);
+    g_migoto.checkForegroundWindow = (GetIniInt(L"System", L"check_foreground_window", iniPath) == 0);
+
     // Read hotkey bindings from [Hunting] section
     const wchar_t* hotkeyNames[] = {
         L"next_pixelshader", L"previous_pixelshader", L"mark_pixelshader",
@@ -124,6 +128,19 @@ bool Load(const wchar_t* gameDir)
             int vk = ParseVKey(val);
             if (vk > 0)
                 g_migoto.hotkeys[name] = vk;
+        }
+    }
+
+    // Read global hotkeys (non-Hunting sections)
+    const wchar_t* globalSections[] = { L"KeyToggleMods", L"KeyReloadMods" };
+    for (const auto& section : globalSections)
+    {
+        std::wstring val = GetIniValue(section, L"Key", iniPath);
+        if (!val.empty())
+        {
+            int vk = ParseVKey(val);
+            if (vk > 0)
+                g_migoto.hotkeys[section] = vk;
         }
     }
 
